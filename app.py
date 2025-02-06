@@ -2,6 +2,14 @@ import streamlit as st
 import nltk
 from textblob import TextBlob
 from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.data import find
+
+# Pobranie zasobów wymaganych przez NLTK
+nltk.download('punkt')
+import streamlit as st
+import nltk
+from textblob import TextBlob
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 nltk.download('punkt')
 
