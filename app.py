@@ -1,17 +1,20 @@
 import streamlit as st
 import nltk
+import os
 from textblob import TextBlob
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.data import find
 
-# Pobranie zasobów wymaganych przez NLTK
-nltk.download('punkt')
-import streamlit as st
-import nltk
-from textblob import TextBlob
-from nltk.tokenize import sent_tokenize, word_tokenize
+# Ustawienie katalogu na pobranie zasobów NLTK
+NLTK_DATA_PATH = os.path.join(os.getcwd(), "nltk_data")
+os.makedirs(NLTK_DATA_PATH, exist_ok=True)
+nltk.data.path.append(NLTK_DATA_PATH)
 
-nltk.download('punkt')
+# Pobranie tokenizera jeśli nie jest jeszcze pobrany
+try:
+    find("tokenizers/punkt")
+except LookupError:
+    nltk.download('punkt', download_dir=NLTK_DATA_PATH)
 
 def evaluate_email(email_text, task_requirements):
     feedback = {}
