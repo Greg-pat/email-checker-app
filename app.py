@@ -8,10 +8,11 @@ import re
 tool = language_tool_python.LanguageToolPublicAPI('en-US')
 spell = SpellChecker(language='en')
 
-# ✅ Lista słów ignorowanych przez spellchecker
+# ✅ Lista słów ignorowanych przez spellchecker (eliminacja fałszywych błędów)
 IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "concerned", 
                 "for", "position", "creative", "experience", "application", "manager", 
-                "changes", "employer", "sincerely", "hard-working", "applications"}
+                "changes", "employer", "sincerely", "hard-working", "applications", 
+                "trends,", "news,", "experience,", "creative,", "for.", "application."}
 
 # ✅ Minimalna liczba słów dla każdego formatu
 MIN_WORDS = {"E-mail": 50, "Blog": 75}
@@ -50,6 +51,7 @@ def evaluate_correctness(email_text):
     spell_errors = {}
     punctuation_errors = {}
 
+    # ✅ Wykrywanie błędów gramatycznych (LanguageTool)
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
         correction = match.replacements[0] if match.replacements else "Brak propozycji"
@@ -62,7 +64,10 @@ def evaluate_correctness(email_text):
         else:
             grammar_errors[error] = (correction, "Błąd gramatyczny")
 
-    misspelled_words = spell.unknown(email_text.split())
+    # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
+    words_without_punctuation = [re.sub(r'[^\w\s]', '', word) for word in email_text.split()]
+    misspelled_words = spell.unknown(words_without_punctuation)
+    
     for word in misspelled_words:
         correction = spell.correction(word) or "Brak propozycji"
         if word.lower() in IGNORE_WORDS:
@@ -129,9 +134,6 @@ if st.button("✅ Sprawdź"):
         result, detected_format, errors_table = evaluate_email(email_text, selected_format)
 
         st.write(f"### 📖 Wykryty format tekstu: **{detected_format}**")
-        if detected_format != selected_format:
-            st.warning(f"⚠️ Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl.")
-
         for key, value in result.items():
             st.write(f"**{key}:** {value}")
 
