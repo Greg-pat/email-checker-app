@@ -9,119 +9,135 @@ import re
 tool = language_tool_python.LanguageToolPublicAPI('en-US')
 spell = SpellChecker(language='en')
 
-# ✅ Lista słów ignorowanych przez spellchecker (bo nie są błędami)
-IGNORE_WORDS = {
-    "job", "you", "week", "news", "years", "media", "trends", "concerned", 
-    "for", "position", "creative", "experience", "application", "manager", 
-    "changes", "employer", "sir/madam", "references"
-}
+# ✅ Lista słów kluczowych do rozpoznawania formatu tekstu
+EMAIL_KEYWORDS = ["dear", "yours sincerely", "yours faithfully", "regards", "best wishes", "please find attached"]
+BLOG_KEYWORDS = ["today I want to share", "let me tell you", "I think", "in my opinion", "have you ever", "let’s talk about"]
 
-# ✅ Funkcja do usuwania znaków interpunkcyjnych na końcu wyrazu
-def clean_word(word):
-    return re.sub(r'[^\w\s]', '', word)
+# ✅ Funkcja do rozpoznawania formatu tekstu
+def detect_format(email_text):
+    text_lower = email_text.lower()
+    email_count = sum(1 for word in EMAIL_KEYWORDS if word in text_lower)
+    blog_count = sum(1 for word in BLOG_KEYWORDS if word in text_lower)
 
-# ✅ Nowa funkcja analizy treści
-def check_content(email_text, required_points):
-    missing_points = []
-    email_text_lower = email_text.lower()
-
-    synonyms = {
-        "poinformować o terminie": ["inform about the date", "notify about the time", "mention the date"],
-        "zaprosić na wydarzenie": ["invite to the event", "send an invitation", "ask to join"],
-        "zapytać o szczegóły": ["ask for details", "inquire about", "request further information", "look forward to hearing"]
-    }
-
-    for point, variations in synonyms.items():
-        found = any(variation in email_text_lower for variation in variations)
-        if not found:
-            missing_points.append(point)
-
-    return missing_points
-
-# ✅ Nowa funkcja oceny e-maila
-def evaluate_email(email_text, task_requirements):
-    feedback = {}
-
-    # ✅ Ocena treści
-    missing_points = check_content(email_text, task_requirements)
-    if missing_points:
-        feedback['Treść'] = f'Nie uwzględniono: {", ".join(missing_points)}.'
+    if email_count > blog_count:
+        return "E-mail"
+    elif blog_count > email_count:
+        return "Blog"
     else:
-        feedback['Treść'] = 'Wszystkie punkty zostały uwzględnione.'
+        return "Nieokreślony"
 
-    # ✅ Spójność tekstu
+# ✅ Funkcja do oceny treści na podstawie podpunktów
+def evaluate_content(email_text, required_points):
+    points = 0
+    covered = 0
+    developed = 0
+    text_lower = email_text.lower()
+
+    for point in required_points:
+        if any(phrase in text_lower for phrase in point):
+            covered += 1
+            if any(len(phrase.split()) > 2 for phrase in point):  
+                developed += 1  
+
+    # Ocena punktowa
+    if covered == 3 and developed >= 2:
+        points = 4
+    elif covered == 3 and developed == 1:
+        points = 3
+    elif covered == 2 and developed >= 1:
+        points = 2
+    elif covered == 1:
+        points = 1
+    return points, covered, developed
+
+# ✅ Funkcja do oceny spójności i logiki
+def evaluate_coherence(email_text):
     sentences = email_text.split('.')
-    feedback['Spójność'] = 'Tekst jest spójny.' if len(sentences) >= 3 else 'Tekst jest za krótki.'
+    if len(sentences) < 3:
+        return 1, "Tekst jest za krótki. Dodaj więcej rozwinięć myśli."
+    return 2, "Tekst jest dobrze zorganizowany."
 
-    # ✅ Zakres środków językowych
+# ✅ Funkcja do oceny zakresu środków językowych
+def evaluate_language_range(email_text):
     words = email_text.split()
     unique_words = set(words)
-    feedback['Zakres językowy'] = 'Słownictwo jest zróżnicowane.' if len(unique_words) > len(words) * 0.6 else 'Zbyt powtarzalne słownictwo.'
+    if len(unique_words) > len(words) * 0.6:
+        return 2, "Zróżnicowane słownictwo. Bardzo dobrze!"
+    return 1, "Słownictwo jest dość powtarzalne. Spróbuj dodać więcej synonimów."
 
-    # ✅ Poprawność językowa
+# ✅ Funkcja do oceny poprawności językowej
+def evaluate_correctness(email_text):
     matches = tool.check(email_text)
     grammar_errors = {}
     spell_errors = {}
-    corrected_text = email_text
 
-    # ✅ Wykrywanie błędów gramatycznych (LanguageTool)
+    # Wykrywanie błędów gramatycznych (LanguageTool)
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
-        correction = match.replacements[0] if match.replacements else "Nie znaleziono poprawnej formy"
-
-        # ✅ Filtrujemy fałszywe błędy
-        if clean_word(error.lower()) in IGNORE_WORDS or len(error) < 2:
-            continue  
-
+        correction = match.replacements[0] if match.replacements else "Brak propozycji"
         grammar_errors[error] = (correction, "Błąd gramatyczny")
-        corrected_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", corrected_text, 1)
 
-    # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
-    misspelled_words = spell.unknown([clean_word(w) for w in email_text.split()])
+    # Wykrywanie błędów ortograficznych (pyspellchecker)
+    misspelled_words = spell.unknown(email_text.split())
     for word in misspelled_words:
-        if clean_word(word.lower()) in IGNORE_WORDS:
-            continue  # Ignorujemy poprawne słowa
-
-        correction = spell.correction(word) or "Nie znaleziono poprawnej formy"
+        correction = spell.correction(word) or "Brak propozycji"
         spell_errors[word] = (correction, "Błąd ortograficzny")
-        corrected_text = re.sub(rf'\b{re.escape(word)}\b', f"<span style='color:red; font-weight:bold;'>{word}</span>", corrected_text, 1)
 
-    # ✅ Połączenie błędów gramatycznych i ortograficznych
+    # Łączymy błędy
     all_errors = {**grammar_errors, **spell_errors}
-    feedback['Poprawność'] = all_errors if all_errors else 'Brak oczywistych błędów.'
+    
+    # Punktacja
+    error_count = len(all_errors)
+    if error_count == 0:
+        return 2, "Brak błędów! Doskonała poprawność językowa."
+    elif error_count < 5:
+        return 1, "Kilka drobnych błędów, ale nie wpływają znacząco na komunikację."
+    return 0, "Zbyt dużo błędów – spróbuj je poprawić, aby tekst był bardziej zrozumiały."
 
-    return feedback, corrected_text
+# ✅ Główna funkcja oceny całego tekstu
+def evaluate_email(email_text, task_requirements, selected_format):
+    feedback = {}
+    detected_format = detect_format(email_text)
 
-st.title("📩 Sprawdzanie maili na egzamin ósmoklasisty")
-st.write("✏️ Wpisz swój e-mail i sprawdź, czy spełnia kryteria egzaminacyjne.")
+    # Jeśli format się nie zgadza, ostrzeżenie
+    if detected_format != "Nieokreślony" and detected_format != selected_format:
+        feedback['📌 Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
 
-task = ['poinformować o terminie', 'zaprosić na wydarzenie', 'zapytać o szczegóły']
+    # Ocena każdego kryterium
+    content_score, covered, developed = evaluate_content(email_text, task_requirements)
+    coherence_score, coherence_feedback = evaluate_coherence(email_text)
+    range_score, range_feedback = evaluate_language_range(email_text)
+    correctness_score, correctness_feedback = evaluate_correctness(email_text)
 
-email_text = st.text_area("📌 Wpisz swój e-mail tutaj:")
+    feedback['📝 Treść'] = f"{content_score}/4 - Odniosłeś się do {covered} podpunktów, {developed} rozwiniętych. Spróbuj dodać więcej szczegółów."
+    feedback['🔗 Spójność i logika'] = f"{coherence_score}/2 - {coherence_feedback}"
+    feedback['📖 Zakres językowy'] = f"{range_score}/2 - {range_feedback}"
+    feedback['✅ Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
+
+    return feedback, detected_format
+
+# ✅ Interfejs użytkownika
+st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
+st.write("✏️ Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
+
+# ✅ Wybór formatu przez ucznia
+selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
+
+# ✅ Treść wpisu
+email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
-        result, highlighted_text = evaluate_email(email_text, task)
+        result, detected_format = evaluate_email(email_text, [['poinformować o terminie'], ['zaprosić na wydarzenie'], ['zapytać o szczegóły']], selected_format)
 
-        # ✅ Wyświetlamy tekst z zaznaczonymi błędami na czerwono
-        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(f"<p style='font-size:16px;'>{highlighted_text}</p>", unsafe_allow_html=True)
+        # ✅ Wyświetlamy rzeczywisty format tekstu
+        st.write(f"### 📖 Wykryty format tekstu: **{detected_format}**")
+        if detected_format != selected_format:
+            st.warning(f"⚠️ Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl.")
 
         # ✅ Wyświetlanie wyników
         for key, value in result.items():
-            if key == "Poprawność" and isinstance(value, dict):
-                st.write(f"**{key}:**")
-                
-                # ✅ Tworzymy tabelę z błędami i poprawkami
-                errors_table = pd.DataFrame(
-                    [(error, correction, message) for error, (correction, message) in value.items()],
-                    columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
-                )
+            st.write(f"**{key}:** {value}")
 
-                # ✅ Wyświetlamy tabelę
-                st.dataframe(errors_table, height=300, width=700)
-
-            else:
-                st.write(f"**{key}:** {value}")
     else:
-        st.warning("⚠️ Wpisz treść maila przed sprawdzeniem.")
+        st.warning("⚠️ Wpisz treść przed sprawdzeniem.")
