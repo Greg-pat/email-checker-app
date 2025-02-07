@@ -9,6 +9,9 @@ import re
 tool = language_tool_python.LanguageToolPublicAPI('en-US')
 spell = SpellChecker(language='en')
 
+# ✅ Lista słów ignorowanych przez spellchecker (bo nie są błędami)
+IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "concerned", "for", "position", "creative"}
+
 # ✅ Nowa funkcja analizy treści
 def check_content(email_text, required_points):
     missing_points = []
@@ -64,6 +67,8 @@ def evaluate_email(email_text, task_requirements):
     # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
     misspelled_words = spell.unknown(email_text.split())
     for word in misspelled_words:
+        if word.lower() in IGNORE_WORDS:
+            continue  # Ignorujemy słowa, które są poprawne
         correction = spell.correction(word) or "Brak propozycji"
         if word not in grammar_errors:
             spell_errors[word] = (correction, "Prawdopodobny błąd ortograficzny")
