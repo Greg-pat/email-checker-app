@@ -1,9 +1,9 @@
 import streamlit as st
-import spacy
 from textblob import TextBlob
+import language_tool_python
 
-# ✅ Załaduj model języka angielskiego (jest instalowany razem z `spacy-en`)
-nlp = spacy.load("en_core_web_sm")
+# ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki
+tool = language_tool_python.LanguageToolPublicAPI('en-US')
 
 # ✅ Funkcja oceny e-maila
 def evaluate_email(email_text, task_requirements):
@@ -16,19 +16,19 @@ def evaluate_email(email_text, task_requirements):
     else:
         feedback['Treść'] = 'Wszystkie punkty zostały uwzględnione.'
 
-    # ✅ Spójność i logika (liczba zdań)
-    doc = nlp(email_text)
-    sentences = list(doc.sents)
+    # ✅ Spójność i długość tekstu
+    sentences = email_text.split('.')
     feedback['Spójność'] = 'Tekst jest spójny.' if len(sentences) >= 3 else 'Tekst jest za krótki.'
 
     # Zakres środków językowych
-    unique_words = set([token.text.lower() for token in doc if token.is_alpha])
-    feedback['Zakres językowy'] = 'Słownictwo jest zróżnicowane.' if len(unique_words) > len(doc) * 0.6 else 'Zbyt powtarzalne słownictwo.'
+    words = email_text.split()
+    unique_words = set(words)
+    feedback['Zakres językowy'] = 'Słownictwo jest zróżnicowane.' if len(unique_words) > len(words) * 0.6 else 'Zbyt powtarzalne słownictwo.'
 
-    # Poprawność językowa (gramatyka i ortografia)
-    blob = TextBlob(email_text)
-    errors = [str(correction) for word, correction in blob.correct().words if word != correction]
-    feedback['Poprawność'] = f'Popraw możliwe błędy: {", ".join(errors)}.' if errors else 'Brak oczywistych błędów.'
+    # ✅ Poprawność językowa (gramatyka i ortografia)
+    matches = tool.check(email_text)
+    grammar_errors = [match.ruleId for match in matches]
+    feedback['Poprawność'] = f'Znalezione błędy: {", ".join(grammar_errors)}.' if grammar_errors else 'Brak oczywistych błędów.'
 
     return feedback
 
