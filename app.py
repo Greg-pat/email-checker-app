@@ -10,7 +10,15 @@ tool = language_tool_python.LanguageToolPublicAPI('en-US')
 spell = SpellChecker(language='en')
 
 # ✅ Lista słów ignorowanych przez spellchecker (bo nie są błędami)
-IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "concerned", "for", "position", "creative", "experience", "application", "manager", "changes", "employer"}
+IGNORE_WORDS = {
+    "job", "you", "week", "news", "years", "media", "trends", "concerned", 
+    "for", "position", "creative", "experience", "application", "manager", 
+    "changes", "employer", "sir/madam", "references"
+}
+
+# ✅ Funkcja do usuwania znaków interpunkcyjnych na końcu wyrazu
+def clean_word(word):
+    return re.sub(r'[^\w\s]', '', word)
 
 # ✅ Nowa funkcja analizy treści
 def check_content(email_text, required_points):
@@ -59,22 +67,22 @@ def evaluate_email(email_text, task_requirements):
     # ✅ Wykrywanie błędów gramatycznych (LanguageTool)
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
-        correction = match.replacements[0] if match.replacements else "Brak propozycji"
+        correction = match.replacements[0] if match.replacements else "Nie znaleziono poprawnej formy"
 
         # ✅ Filtrujemy fałszywe błędy
-        if error.lower() in IGNORE_WORDS or len(error) < 2:
+        if clean_word(error.lower()) in IGNORE_WORDS or len(error) < 2:
             continue  
 
         grammar_errors[error] = (correction, "Błąd gramatyczny")
         corrected_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", corrected_text, 1)
 
     # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
-    misspelled_words = spell.unknown(email_text.split())
+    misspelled_words = spell.unknown([clean_word(w) for w in email_text.split()])
     for word in misspelled_words:
-        if word.lower() in IGNORE_WORDS:
+        if clean_word(word.lower()) in IGNORE_WORDS:
             continue  # Ignorujemy poprawne słowa
 
-        correction = spell.correction(word) or "Brak propozycji"
+        correction = spell.correction(word) or "Nie znaleziono poprawnej formy"
         spell_errors[word] = (correction, "Błąd ortograficzny")
         corrected_text = re.sub(rf'\b{re.escape(word)}\b', f"<span style='color:red; font-weight:bold;'>{word}</span>", corrected_text, 1)
 
