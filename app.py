@@ -17,22 +17,6 @@ IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "conce
 # ✅ Minimalna liczba słów dla każdego formatu
 MIN_WORDS = {"E-mail": 50, "Blog": 75}
 
-# ✅ Funkcja rozpoznająca format tekstu
-def detect_format(email_text):
-    email_keywords = ["dear", "yours sincerely", "yours faithfully", "regards", "best wishes", "please find attached"]
-    blog_keywords = ["today I want to share", "let me tell you", "I think", "in my opinion", "have you ever", "let’s talk about"]
-
-    text_lower = email_text.lower()
-    email_count = sum(1 for word in email_keywords if word in text_lower)
-    blog_count = sum(1 for word in blog_keywords if word in text_lower)
-
-    if email_count > blog_count:
-        return "E-mail"
-    elif blog_count > email_count:
-        return "Blog"
-    else:
-        return "Nieokreślony"
-
 # ✅ Funkcja oceniająca liczbę słów
 def evaluate_word_count(email_text, format_type):
     words = email_text.split()
@@ -40,7 +24,7 @@ def evaluate_word_count(email_text, format_type):
     min_words = MIN_WORDS.get(format_type, 50)
 
     if word_count >= min_words:
-        return f"Liczba słów: {word_count}/{min_words} - Wystarczająca długość."
+        return f"✅ Liczba słów: {word_count}/{min_words} - Wystarczająca długość."
     else:
         return f"⚠️ Liczba słów: {word_count}/{min_words} - Za krótko. Dodaj więcej informacji."
 
@@ -97,31 +81,35 @@ def evaluate_correctness(email_text):
 # ✅ Główna funkcja oceny
 def evaluate_email(email_text, selected_format):
     feedback = {}
-    detected_format = detect_format(email_text)
 
-    if detected_format != "Nieokreślony" and detected_format != selected_format:
-        feedback['Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
-
-    feedback['Liczba słów'] = evaluate_word_count(email_text, selected_format)
+    feedback['📖 Liczba słów'] = evaluate_word_count(email_text, selected_format)
 
     correctness_score, correctness_feedback, errors_table, highlighted_text = evaluate_correctness(email_text)
 
-    feedback['Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
+    feedback['✅ Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
 
-    return feedback, detected_format, errors_table, highlighted_text
+    # ✅ Podsumowanie wszystkich kryteriów oceny
+    final_score = correctness_score  # Można dodać inne kryteria, jeśli chcesz pełne 10 pkt
+    feedback['📌 **Podsumowanie oceny:**'] = f"🔹 **Łączny wynik**: {final_score}/2 pkt\n\n" + \
+        "🔹 **Kryteria oceny:**\n" + \
+        "• Treść: 0-4 pkt (czy spełnia wszystkie podpunkty?)\n" + \
+        "• Spójność i logika: 0-2 pkt (czy tekst jest logiczny i dobrze zorganizowany?)\n" + \
+        "• Zakres środków językowych: 0-2 pkt (czy używane są różnorodne słowa?)\n" + \
+        "• Poprawność środków językowych: 0-2 pkt (czy tekst ma błędy ortograficzne i gramatyczne?)"
+
+    return feedback, errors_table, highlighted_text
 
 # ✅ Interfejs użytkownika
-st.title("Automatyczna ocena wypowiedzi pisemnych wypowiedzi na egzamin ósmoklasisty")
-st.write("Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
+st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
+st.write("✏️ Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
-email_text = st.text_area("Wpisz swój tekst tutaj:")
+email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
-        result, detected_format, errors_table, highlighted_text = evaluate_email(email_text, selected_format)
+        result, errors_table, highlighted_text = evaluate_email(email_text, selected_format)
 
-        st.write(f"### Wykryty format tekstu: **{detected_format}**")
         for key, value in result.items():
             st.write(f"**{key}:** {value}")
 
