@@ -44,12 +44,13 @@ def evaluate_word_count(email_text, format_type):
     else:
         return f"⚠️ Liczba słów: {word_count}/{min_words} - Za krótko. Dodaj więcej informacji."
 
-# ✅ Funkcja oceniająca poprawność językową
+# ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
 def evaluate_correctness(email_text):
     matches = tool.check(email_text)
     grammar_errors = {}
     spell_errors = {}
     punctuation_errors = {}
+    highlighted_text = email_text
 
     # ✅ Wykrywanie błędów gramatycznych (LanguageTool)
     for match in matches:
@@ -64,6 +65,9 @@ def evaluate_correctness(email_text):
         else:
             grammar_errors[error] = (correction, "Błąd gramatyczny")
 
+        # ✅ Podkreślanie błędów w tekście na czerwono
+        highlighted_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", highlighted_text, 1)
+
     # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
     words_without_punctuation = [re.sub(r'[^\w\s]', '', word) for word in email_text.split()]
     misspelled_words = spell.unknown(words_without_punctuation)
@@ -74,6 +78,9 @@ def evaluate_correctness(email_text):
             continue  
         spell_errors[word] = (correction, "Błąd ortograficzny")
 
+        # ✅ Podkreślanie błędów ortograficznych w tekście na czerwono
+        highlighted_text = re.sub(rf'\b{re.escape(word)}\b', f"<span style='color:red; font-weight:bold;'>{word}</span>", highlighted_text, 1)
+
     all_errors = {**grammar_errors, **spell_errors, **punctuation_errors}
     errors_table = pd.DataFrame(
         [(error, correction, category) for error, (correction, category) in all_errors.items()],
@@ -82,25 +89,10 @@ def evaluate_correctness(email_text):
 
     error_count = len(all_errors)
     if error_count == 0:
-        return 2, "Brak błędów! Doskonała poprawność językowa.", errors_table
+        return 2, "Brak błędów! Doskonała poprawność językowa.", errors_table, highlighted_text
     elif error_count < 5:
-        return 1, "Kilka błędów, ale nie wpływają znacząco na komunikację.", errors_table
-    return 0, "Zbyt dużo błędów – spróbuj je poprawić, aby tekst był bardziej zrozumiały.", errors_table
-
-# ✅ Funkcja oceniająca spójność i logikę
-def evaluate_coherence(email_text):
-    sentences = email_text.split('.')
-    if len(sentences) < 3:
-        return 1, "Tekst jest za krótki. Dodaj więcej rozwinięć myśli."
-    return 2, "Tekst jest dobrze zorganizowany."
-
-# ✅ Funkcja oceniająca zakres językowy
-def evaluate_language_range(email_text):
-    words = email_text.split()
-    unique_words = set(words)
-    if len(unique_words) > len(words) * 0.6:
-        return 2, "Zróżnicowane słownictwo. Bardzo dobrze!"
-    return 1, "Słownictwo jest dość powtarzalne. Spróbuj dodać więcej synonimów."
+        return 1, "Kilka błędów, ale nie wpływają znacząco na komunikację.", errors_table, highlighted_text
+    return 0, "Zbyt dużo błędów – spróbuj je poprawić, aby tekst był bardziej zrozumiały.", errors_table, highlighted_text
 
 # ✅ Główna funkcja oceny
 def evaluate_email(email_text, selected_format):
@@ -108,22 +100,18 @@ def evaluate_email(email_text, selected_format):
     detected_format = detect_format(email_text)
 
     if detected_format != "Nieokreślony" and detected_format != selected_format:
-        feedback['📌 Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
+        feedback['Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
 
-    feedback['📖 Liczba słów'] = evaluate_word_count(email_text, selected_format)
+    feedback['Liczba słów'] = evaluate_word_count(email_text, selected_format)
 
-    coherence_score, coherence_feedback = evaluate_coherence(email_text)
-    range_score, range_feedback = evaluate_language_range(email_text)
-    correctness_score, correctness_feedback, errors_table = evaluate_correctness(email_text)
+    correctness_score, correctness_feedback, errors_table, highlighted_text = evaluate_correctness(email_text)
 
-    feedback['Spójność i logika'] = f"{coherence_score}/2 - {coherence_feedback}"
-    feedback['Zakres językowy'] = f"{range_score}/2 - {range_feedback}"
     feedback['Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
 
-    return feedback, detected_format, errors_table
+    return feedback, detected_format, errors_table, highlighted_text
 
 # ✅ Interfejs użytkownika
-st.title("Automatyczna ocena wypowiedzi pisemnych wypowiedzi na egzamin ósmoklasisty.")
+st.title("Automatyczna ocena wypowiedzi pisemnych wypowiedzi na egzamin ósmoklasisty")
 st.write("Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
@@ -131,7 +119,7 @@ email_text = st.text_area("Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
-        result, detected_format, errors_table = evaluate_email(email_text, selected_format)
+        result, detected_format, errors_table, highlighted_text = evaluate_email(email_text, selected_format)
 
         st.write(f"### Wykryty format tekstu: **{detected_format}**")
         for key, value in result.items():
@@ -140,6 +128,10 @@ if st.button("✅ Sprawdź"):
         if errors_table is not None and not errors_table.empty:
             st.write("### ❌ Lista błędów i poprawek:")
             st.dataframe(errors_table, height=300, width=700)
+
+        # ✅ Wyświetlamy tekst z zaznaczonymi błędami
+        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
+        st.markdown(f"<p style='font-size:16px;'>{highlighted_text}</p>", unsafe_allow_html=True)
 
     else:
         st.warning("⚠️ Wpisz treść przed sprawdzeniem.")
