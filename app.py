@@ -57,7 +57,7 @@ def evaluate_email(email_text, task_requirements):
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
         correction = match.replacements[0] if match.replacements else "Brak propozycji"
-        if error not in grammar_errors:
+        if error not in grammar_errors and len(error) > 2:  # Filtrujemy pojedyncze błędne litery
             grammar_errors[error] = (correction, match.message)
             corrected_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", corrected_text, 1)
 
