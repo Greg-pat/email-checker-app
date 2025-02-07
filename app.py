@@ -100,7 +100,6 @@ def ocena_tekstu(tekst, format):
     punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, opis_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    # ✅ Pełna lista ocenianych kryteriów z oceną
     wyniki['📝 Treść'] = f"{punkty_treści}/4 - {opis_treści}"
     wyniki['🔗 Spójność i logika'] = f"{punkty_spójności}/2 - {opis_spójności}"
     wyniki['📖 Zakres językowy'] = f"{punkty_zakresu}/2 - {opis_zakresu}"
@@ -122,3 +121,10 @@ if st.button("✅ Sprawdź"):
         wynik, tabela_błędów, tekst_zaznaczony = ocena_tekstu(email_text, selected_format)
         for klucz, wartość in wynik.items():
             st.write(f"**{klucz}:** {wartość}")
+
+        if tabela_błędów is not None and not tabela_błędów.empty:
+            st.write("### ❌ Lista błędów i poprawek:")
+            st.dataframe(tabela_błędów)
+
+        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
+        st.markdown(f"<p style='font-size:16px;'>{tekst_zaznaczony}</p>", unsafe_allow_html=True)
