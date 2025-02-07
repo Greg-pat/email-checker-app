@@ -108,9 +108,9 @@ def evaluate_email(email_text, selected_format):
     detected_format = detect_format(email_text)
 
     if detected_format != "Nieokreślony" and detected_format != selected_format:
-        feedback['Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
+        feedback['📌 Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
 
-    feedback['Liczba słów'] = evaluate_word_count(email_text, selected_format)
+    feedback['📖 Liczba słów'] = evaluate_word_count(email_text, selected_format)
 
     coherence_score, coherence_feedback = evaluate_coherence(email_text)
     range_score, range_feedback = evaluate_language_range(email_text)
@@ -123,7 +123,7 @@ def evaluate_email(email_text, selected_format):
     return feedback, detected_format, errors_table
 
 # ✅ Interfejs użytkownika
-st.title("Automatyczna ocena wypowiedzi pisemnych na egzamin ósmoklasisty")
+st.title("Automatyczna ocena wypowiedzi pisemnych wypowiedzi na egzamin ósmoklasisty.")
 st.write("Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
@@ -138,7 +138,7 @@ if st.button("✅ Sprawdź"):
             st.write(f"**{key}:** {value}")
 
         if errors_table is not None and not errors_table.empty:
-            st.write("### Lista błędów i poprawek:")
+            st.write("### ❌ Lista błędów i poprawek:")
             st.dataframe(errors_table, height=300, width=700)
 
     else:
