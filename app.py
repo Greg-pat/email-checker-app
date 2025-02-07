@@ -1,16 +1,9 @@
-import os
 import streamlit as st
 import spacy
 from textblob import TextBlob
-import subprocess
 
-# ✅ Pobieramy model języka angielskiego jeśli go nie ma
-model_name = "en_core_web_sm"
-try:
-    nlp = spacy.load(model_name)
-except OSError:
-    subprocess.run(["python", "-m", "spacy", "download", model_name])
-    nlp = spacy.load(model_name)
+# ✅ Załaduj model języka angielskiego (jest instalowany razem z `spacy-en`)
+nlp = spacy.load("en_core_web_sm")
 
 # ✅ Funkcja oceny e-maila
 def evaluate_email(email_text, task_requirements):
