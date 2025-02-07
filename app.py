@@ -108,22 +108,22 @@ def evaluate_email(email_text, selected_format):
     detected_format = detect_format(email_text)
 
     if detected_format != "Nieokreślony" and detected_format != selected_format:
-        feedback['📌 Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
+        feedback['Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
 
-    feedback['📖 Liczba słów'] = evaluate_word_count(email_text, selected_format)
+    feedback['Liczba słów'] = evaluate_word_count(email_text, selected_format)
 
     coherence_score, coherence_feedback = evaluate_coherence(email_text)
     range_score, range_feedback = evaluate_language_range(email_text)
     correctness_score, correctness_feedback, errors_table = evaluate_correctness(email_text)
 
-    feedback['🔗 Spójność i logika'] = f"{coherence_score}/2 - {coherence_feedback}"
-    feedback['📖 Zakres językowy'] = f"{range_score}/2 - {range_feedback}"
-    feedback['✅ Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
+    feedback['Spójność i logika'] = f"{coherence_score}/2 - {coherence_feedback}"
+    feedback['Zakres językowy'] = f"{range_score}/2 - {range_feedback}"
+    feedback['Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
 
     return feedback, detected_format, errors_table
 
 # ✅ Interfejs użytkownika
-st.title("Automatyczna ocena pisemnych wypowiedzi na egzamin ósmoklasisty")
+st.title("Automatyczna ocena wypowiedzi pisemnych na egzamin ósmoklasisty")
 st.write("Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
@@ -133,12 +133,12 @@ if st.button("✅ Sprawdź"):
     if email_text:
         result, detected_format, errors_table = evaluate_email(email_text, selected_format)
 
-        st.write(f"### 📖 Wykryty format tekstu: **{detected_format}**")
+        st.write(f"### Wykryty format tekstu: **{detected_format}**")
         for key, value in result.items():
             st.write(f"**{key}:** {value}")
 
         if errors_table is not None and not errors_table.empty:
-            st.write("### ❌ Lista błędów i poprawek:")
+            st.write("### Lista błędów i poprawek:")
             st.dataframe(errors_table, height=300, width=700)
 
     else:
