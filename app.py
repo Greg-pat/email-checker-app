@@ -123,11 +123,11 @@ def evaluate_email(email_text, selected_format):
     return feedback, detected_format, errors_table
 
 # ✅ Interfejs użytkownika
-st.title("📩 Automatyczna ocena pisemnych wypowiedzi na egzamin 8-klasisty")
-st.write("✏️ Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
+st.title("Automatyczna ocena pisemnych wypowiedzi na egzamin ósmoklasisty")
+st.write("Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
-email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
+email_text = st.text_area("Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
