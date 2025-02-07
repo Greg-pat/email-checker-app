@@ -100,21 +100,21 @@ def ocena_tekstu(tekst, format):
     punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, opis_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    wyniki['📝 Treść'] = f"{punkty_treści}/4 - {opis_treści}"
-    wyniki['🔗 Spójność i logika'] = f"{punkty_spójności}/2 - {opis_spójności}"
-    wyniki['📖 Zakres językowy'] = f"{punkty_zakresu}/2 - {opis_zakresu}"
-    wyniki['✅ Poprawność językowa'] = f"{punkty_poprawności}/2 - {opis_poprawności}"
+    wyniki['Treść'] = f"{punkty_treści}/4 - {opis_treści}"
+    wyniki['Spójność i logika'] = f"{punkty_spójności}/2 - {opis_spójności}"
+    wyniki['Zakres językowy'] = f"{punkty_zakresu}/2 - {opis_zakresu}"
+    wyniki['Poprawność językowa'] = f"{punkty_poprawności}/2 - {opis_poprawności}"
 
-    wyniki['📌 **Łączny wynik:**'] = f"🔹 **{punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności}/10 pkt**"
+    wyniki['**Łączny wynik:**'] = f"🔹 **{punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności}/10 pkt**"
 
     return wyniki, tabela_błędów, tekst_zaznaczony
 
 # ✅ **Interfejs użytkownika**
 st.set_page_config(page_title="Analiza tekstu", layout="centered")
 
-st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
+st.title("Automatyczna ocena wypowiedzi pisemnych na egzamin ósmoklasisty")
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
-email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
+email_text = st.text_area("Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
