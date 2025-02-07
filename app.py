@@ -10,7 +10,7 @@ tool = language_tool_python.LanguageToolPublicAPI('en-US')
 spell = SpellChecker(language='en')
 
 # ✅ Lista słów ignorowanych przez spellchecker (bo nie są błędami)
-IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "concerned", "for", "position", "creative"}
+IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "concerned", "for", "position", "creative", "experience", "application", "manager", "changes", "employer"}
 
 # ✅ Nowa funkcja analizy treści
 def check_content(email_text, required_points):
@@ -60,19 +60,23 @@ def evaluate_email(email_text, task_requirements):
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
         correction = match.replacements[0] if match.replacements else "Brak propozycji"
-        if error not in grammar_errors and len(error) > 2:  # Filtrujemy pojedyncze błędne litery
-            grammar_errors[error] = (correction, match.message)
-            corrected_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", corrected_text, 1)
+
+        # ✅ Filtrujemy fałszywe błędy
+        if error.lower() in IGNORE_WORDS or len(error) < 2:
+            continue  
+
+        grammar_errors[error] = (correction, "Błąd gramatyczny")
+        corrected_text = re.sub(rf'\b{re.escape(error)}\b', f"<span style='color:red; font-weight:bold;'>{error}</span>", corrected_text, 1)
 
     # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
     misspelled_words = spell.unknown(email_text.split())
     for word in misspelled_words:
         if word.lower() in IGNORE_WORDS:
-            continue  # Ignorujemy słowa, które są poprawne
+            continue  # Ignorujemy poprawne słowa
+
         correction = spell.correction(word) or "Brak propozycji"
-        if word not in grammar_errors:
-            spell_errors[word] = (correction, "Prawdopodobny błąd ortograficzny")
-            corrected_text = re.sub(rf'\b{re.escape(word)}\b', f"<span style='color:red; font-weight:bold;'>{word}</span>", corrected_text, 1)
+        spell_errors[word] = (correction, "Błąd ortograficzny")
+        corrected_text = re.sub(rf'\b{re.escape(word)}\b', f"<span style='color:red; font-weight:bold;'>{word}</span>", corrected_text, 1)
 
     # ✅ Połączenie błędów gramatycznych i ortograficznych
     all_errors = {**grammar_errors, **spell_errors}
@@ -103,7 +107,7 @@ if st.button("✅ Sprawdź"):
                 # ✅ Tworzymy tabelę z błędami i poprawkami
                 errors_table = pd.DataFrame(
                     [(error, correction, message) for error, (correction, message) in value.items()],
-                    columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Wyjaśnienie"]
+                    columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
                 )
 
                 # ✅ Wyświetlamy tabelę
