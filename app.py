@@ -16,16 +16,35 @@ IGNORE_WORDS = {"job", "you", "week", "news", "years", "media", "trends", "conce
 # ✅ Minimalna liczba słów dla każdego formatu
 MIN_WORDS = {"E-mail": 50, "Blog": 75}
 
-# ✅ Funkcja oceniająca liczbę słów
-def ocena_liczby_słów(tekst, typ):
-    słowa = tekst.split()
-    liczba_słów = len(słowa)
-    min_słów = MIN_WORDS.get(typ, 50)
+# ✅ Funkcja oceniająca treść
+def ocena_treści(tekst):
+    liczba_słów = len(tekst.split())
+    if liczba_słów >= 60:
+        return 4, "Treść dobrze rozwinięta, spełnia wszystkie podpunkty."
+    elif liczba_słów >= 45:
+        return 3, "Treść częściowo rozwinięta, brakuje szczegółów."
+    elif liczba_słów >= 30:
+        return 2, "Treść jest ogólna, niektóre punkty są zbyt krótkie."
+    elif liczba_słów >= 15:
+        return 1, "Treść bardzo skrócona, konieczne rozwinięcie."
+    return 0, "Brak rozwinięcia treści."
 
-    if liczba_słów >= min_słów:
-        return f"✅ Liczba słów: {liczba_słów}/{min_słów} - Wystarczająca długość."
-    else:
-        return f"⚠️ Liczba słów: {liczba_słów}/{min_słów} - Za krótko. Dodaj więcej szczegółów."
+# ✅ Funkcja oceniająca spójność i logikę
+def ocena_spójności(tekst):
+    zdania = tekst.split('.')
+    if len(zdania) >= 4:
+        return 2, "Tekst jest dobrze zorganizowany i logiczny."
+    elif len(zdania) >= 2:
+        return 1, "Tekst zawiera pewne luki w spójności."
+    return 0, "Tekst niespójny, wymaga lepszego uporządkowania."
+
+# ✅ Funkcja oceniająca zakres językowy
+def ocena_zakresu(tekst):
+    słowa = tekst.split()
+    unikalne_słowa = set(słowa)
+    if len(unikalne_słowa) > len(słowa) * 0.6:
+        return 2, "Zróżnicowane słownictwo. Bardzo dobrze!"
+    return 1, "Słownictwo jest dość powtarzalne. Spróbuj dodać więcej synonimów."
 
 # ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
 def ocena_poprawności(tekst):
@@ -76,17 +95,18 @@ def ocena_poprawności(tekst):
 def ocena_tekstu(tekst, format):
     wyniki = {}
 
-    wyniki['📖 Liczba słów'] = ocena_liczby_słów(tekst, format)
-
+    punkty_treści, opis_treści = ocena_treści(tekst)
+    punkty_spójności, opis_spójności = ocena_spójności(tekst)
+    punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, opis_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    # ✅ Pełna lista ocenianych kryteriów
-    wyniki['📝 Treść'] = "0-4 pkt (Czy spełnia wszystkie podpunkty?)"
-    wyniki['🔗 Spójność i logika'] = "0-2 pkt (Czy tekst jest logiczny i dobrze zorganizowany?)"
-    wyniki['📖 Zakres językowy'] = "0-2 pkt (Czy używane są różnorodne słowa?)"
+    # ✅ Pełna lista ocenianych kryteriów z oceną
+    wyniki['📝 Treść'] = f"{punkty_treści}/4 - {opis_treści}"
+    wyniki['🔗 Spójność i logika'] = f"{punkty_spójności}/2 - {opis_spójności}"
+    wyniki['📖 Zakres językowy'] = f"{punkty_zakresu}/2 - {opis_zakresu}"
     wyniki['✅ Poprawność językowa'] = f"{punkty_poprawności}/2 - {opis_poprawności}"
 
-    wyniki['📌 **Łączny wynik:**'] = f"🔹 **{punkty_poprawności}/10 pkt**"
+    wyniki['📌 **Łączny wynik:**'] = f"🔹 **{punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności}/10 pkt**"
 
     return wyniki, tabela_błędów, tekst_zaznaczony
 
@@ -94,25 +114,11 @@ def ocena_tekstu(tekst, format):
 st.set_page_config(page_title="Analiza tekstu", layout="centered")
 
 st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
-st.write("✏️ Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
-
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
 email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
         wynik, tabela_błędów, tekst_zaznaczony = ocena_tekstu(email_text, selected_format)
-
-        st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
             st.write(f"**{klucz}:** {wartość}")
-
-        if tabela_błędów is not None and not tabela_błędów.empty:
-            st.write("### ❌ Lista błędów i poprawek:")
-            st.dataframe(tabela_błędów, height=300, width=700)
-
-        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(f"<p style='font-size:16px;'>{tekst_zaznaczony}</p>", unsafe_allow_html=True)
-
-    else:
-        st.warning("⚠️ Wpisz tekst przed sprawdzeniem.")
