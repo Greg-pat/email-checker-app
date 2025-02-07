@@ -26,7 +26,7 @@ def detect_format(email_text):
     else:
         return "Nieokreślony"
 
-# ✅ Funkcja do oceny treści na podstawie podpunktów
+# ✅ Funkcja do oceny treści
 def evaluate_content(email_text, required_points):
     points = 0
     covered = 0
@@ -36,7 +36,7 @@ def evaluate_content(email_text, required_points):
     for point in required_points:
         if any(phrase in text_lower for phrase in point):
             covered += 1
-            if any(len(phrase.split()) > 2 for phrase in point):  
+            if any(len(phrase.split()) > 2 for phrase in point):
                 developed += 1  
 
     # Ocena punktowa
@@ -50,77 +50,65 @@ def evaluate_content(email_text, required_points):
         points = 1
     return points, covered, developed
 
-# ✅ Funkcja do oceny spójności i logiki
-def evaluate_coherence(email_text):
-    sentences = email_text.split('.')
-    if len(sentences) < 3:
-        return 1, "Tekst jest za krótki. Dodaj więcej rozwinięć myśli."
-    return 2, "Tekst jest dobrze zorganizowany."
-
-# ✅ Funkcja do oceny zakresu środków językowych
-def evaluate_language_range(email_text):
-    words = email_text.split()
-    unique_words = set(words)
-    if len(unique_words) > len(words) * 0.6:
-        return 2, "Zróżnicowane słownictwo. Bardzo dobrze!"
-    return 1, "Słownictwo jest dość powtarzalne. Spróbuj dodać więcej synonimów."
-
-# ✅ Funkcja do oceny poprawności językowej
+# ✅ Funkcja do oceny poprawności językowej i generowania tabeli błędów
 def evaluate_correctness(email_text):
     matches = tool.check(email_text)
     grammar_errors = {}
     spell_errors = {}
 
-    # Wykrywanie błędów gramatycznych (LanguageTool)
+    # ✅ Wykrywanie błędów gramatycznych (LanguageTool)
     for match in matches:
         error = match.context[match.offset:match.offset + match.errorLength]
         correction = match.replacements[0] if match.replacements else "Brak propozycji"
         grammar_errors[error] = (correction, "Błąd gramatyczny")
 
-    # Wykrywanie błędów ortograficznych (pyspellchecker)
+    # ✅ Wykrywanie błędów ortograficznych (pyspellchecker)
     misspelled_words = spell.unknown(email_text.split())
     for word in misspelled_words:
         correction = spell.correction(word) or "Brak propozycji"
         spell_errors[word] = (correction, "Błąd ortograficzny")
 
-    # Łączymy błędy
+    # ✅ Połączenie błędów w tabeli
     all_errors = {**grammar_errors, **spell_errors}
-    
-    # Punktacja
+    errors_table = pd.DataFrame(
+        [(error, correction, category) for error, (correction, category) in all_errors.items()],
+        columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
+    ) if all_errors else None
+
+    # ✅ Punktacja poprawności językowej
     error_count = len(all_errors)
     if error_count == 0:
-        return 2, "Brak błędów! Doskonała poprawność językowa."
+        return 2, "Brak błędów! Doskonała poprawność językowa.", errors_table
     elif error_count < 5:
-        return 1, "Kilka drobnych błędów, ale nie wpływają znacząco na komunikację."
-    return 0, "Zbyt dużo błędów – spróbuj je poprawić, aby tekst był bardziej zrozumiały."
+        return 1, "Kilka drobnych błędów, ale nie wpływają znacząco na komunikację.", errors_table
+    return 0, "Zbyt dużo błędów – spróbuj je poprawić, aby tekst był bardziej zrozumiały.", errors_table
 
-# ✅ Główna funkcja oceny całego tekstu
+# ✅ Główna funkcja oceny
 def evaluate_email(email_text, task_requirements, selected_format):
     feedback = {}
     detected_format = detect_format(email_text)
 
-    # Jeśli format się nie zgadza, ostrzeżenie
+    # ✅ Format ostrzeżenia
     if detected_format != "Nieokreślony" and detected_format != selected_format:
         feedback['📌 Uwaga!'] = f"Twój tekst wygląda jak **{detected_format}**, ale wybrałeś **{selected_format}**. Spróbuj dostosować styl."
 
-    # Ocena każdego kryterium
+    # ✅ Ocena treści
     content_score, covered, developed = evaluate_content(email_text, task_requirements)
-    coherence_score, coherence_feedback = evaluate_coherence(email_text)
-    range_score, range_feedback = evaluate_language_range(email_text)
-    correctness_score, correctness_feedback = evaluate_correctness(email_text)
 
+    # ✅ Ocena poprawności językowej
+    correctness_score, correctness_feedback, errors_table = evaluate_correctness(email_text)
+
+    # ✅ Wyniki punktowe
     feedback['📝 Treść'] = f"{content_score}/4 - Odniosłeś się do {covered} podpunktów, {developed} rozwiniętych. Spróbuj dodać więcej szczegółów."
-    feedback['🔗 Spójność i logika'] = f"{coherence_score}/2 - {coherence_feedback}"
-    feedback['📖 Zakres językowy'] = f"{range_score}/2 - {range_feedback}"
     feedback['✅ Poprawność językowa'] = f"{correctness_score}/2 - {correctness_feedback}"
 
-    return feedback, detected_format
+    return feedback, detected_format, errors_table
 
 # ✅ Interfejs użytkownika
 st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
 st.write("✏️ Wybierz typ tekstu i sprawdź, czy spełnia kryteria egzaminacyjne.")
 
-# ✅ Wybór formatu przez ucznia
+# ✅ Wybór formatu
 selected_format = st.radio("Wybierz format tekstu:", ("E-mail", "Blog"))
 
 # ✅ Treść wpisu
@@ -128,7 +116,7 @@ email_text = st.text_area("📌 Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
-        result, detected_format = evaluate_email(email_text, [['poinformować o terminie'], ['zaprosić na wydarzenie'], ['zapytać o szczegóły']], selected_format)
+        result, detected_format, errors_table = evaluate_email(email_text, [['poinformować o terminie'], ['zaprosić na wydarzenie'], ['zapytać o szczegóły']], selected_format)
 
         # ✅ Wyświetlamy rzeczywisty format tekstu
         st.write(f"### 📖 Wykryty format tekstu: **{detected_format}**")
@@ -138,6 +126,11 @@ if st.button("✅ Sprawdź"):
         # ✅ Wyświetlanie wyników
         for key, value in result.items():
             st.write(f"**{key}:** {value}")
+
+        # ✅ Tabela błędów
+        if errors_table is not None and not errors_table.empty:
+            st.write("### ❌ Lista błędów i poprawek:")
+            st.dataframe(errors_table, height=300, width=700)
 
     else:
         st.warning("⚠️ Wpisz treść przed sprawdzeniem.")
