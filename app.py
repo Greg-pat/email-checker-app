@@ -40,7 +40,7 @@ def evaluate_word_count(email_text, format_type):
     min_words = MIN_WORDS.get(format_type, 50)
 
     if word_count >= min_words:
-        return f"✅ Liczba słów: {word_count}/{min_words} - Wystarczająca długość."
+        return f"Liczba słów: {word_count}/{min_words} - Wystarczająca długość."
     else:
         return f"⚠️ Liczba słów: {word_count}/{min_words} - Za krótko. Dodaj więcej informacji."
 
