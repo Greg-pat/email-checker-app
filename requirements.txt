@@ -1,3 +1,5 @@
 streamlit
 textblob
 language_tool_python
+pyspellchecker
+pandas
