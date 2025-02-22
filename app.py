@@ -55,15 +55,22 @@ def ocena_poprawności(tekst):
 # ✅ Główna funkcja oceny
 def ocena_tekstu(tekst, temat):
     punkty_słów, opis_słów = ocena_liczby_słów(tekst)
+    punkty_treści = 4  # Stała wartość dla zgodności z tematem
+    punkty_spójności = 2  # Stała wartość dla spójności tekstu
+    punkty_zakresu = 2  # Stała wartość dla zakresu językowego
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
+
+    # 🔥 **Obliczamy poprawnie sumę punktów (max. 10/10)**
+    suma_punktów = punkty_słów + punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności
+    suma_punktów = min(suma_punktów, 10)  # ✅ Nie może przekroczyć 10 pkt
 
     wyniki = {
         '📖 Zgodna ilość słów': f"{punkty_słów}/2 - {opis_słów}",
-        '📝 Treść': f"4/4 - Treść zgodna z tematem",
-        '🔗 Spójność i logika': f"2/2 - Tekst dobrze zorganizowany",
-        '📖 Zakres środków językowych': f"2/2 - Różnorodne słownictwo",
+        '📝 Treść': f"{punkty_treści}/4 - Treść zgodna z tematem",
+        '🔗 Spójność i logika': f"{punkty_spójności}/2 - Tekst dobrze zorganizowany",
+        '📖 Zakres środków językowych': f"{punkty_zakresu}/2 - Różnorodne słownictwo",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{punkty_słów + 4 + 2 + 2 + punkty_poprawności}/10 pkt**"
+        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
     }
     
     return wyniki, tabela_błędów, tekst_zaznaczony
