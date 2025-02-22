@@ -65,11 +65,11 @@ def ocena_poprawności(tekst):
         błąd = match.context[match.offset:match.offset + match.errorLength]
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
         błędy.append((błąd, poprawka, "Błąd gramatyczny"))
-        tekst_zaznaczony = tekst_zaznaczony.replace(błąd, f"<span style='color:red; font-weight:bold;'>{błąd}</span>")
+        tekst_zaznaczony = re.sub(rf'\b{re.escape(błąd)}\b', f"<span style='color:red; font-weight:bold;'>{błąd}</span>", tekst_zaznaczony)
 
     tabela_błędów = pd.DataFrame(błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]) if błędy else None
 
-    return 2 if len(błędy) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Główna funkcja oceny
 def ocena_tekstu(tekst, temat):
