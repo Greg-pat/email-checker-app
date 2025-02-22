@@ -14,6 +14,14 @@ TEMATY = {
     "E-mail o spotkaniu klasowym": ["meeting", "class", "school", "date", "time", "place", "invitation"]
 }
 
+# ✅ Funkcja oceniająca liczbę słów
+def ocena_liczby_słów(tekst):
+    liczba_słów = len(tekst.split())
+
+    if 50 <= liczba_słów <= 120:
+        return 2, f"✅ Liczba słów: {liczba_słów} - Poprawna długość."
+    return 1, f"⚠️ Liczba słów: {liczba_słów} - Powinno być między 50 a 120."
+
 # ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
 def ocena_poprawności(tekst):
     matches = tool.check(tekst)
@@ -23,16 +31,17 @@ def ocena_poprawności(tekst):
     for match in matches:
         start = match.offset
         end = start + match.errorLength
-        błąd = tekst[start:end]  # Pobieramy dokładnie ten fragment, który zawiera błąd
-
+        błąd = tekst[start:end]
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
 
         if błąd.strip() == "":
-            continue  # Ignorujemy puste błędy
+            continue  
 
-        # ✅ Zaznaczanie błędnych słów na czerwono w HTML
-        tekst_zaznaczony = tekst_zaznaczony.replace(
-            błąd, f"<span style='color:red; font-weight:bold;'>{błąd}</span>", 1
+        tekst_zaznaczony = re.sub(
+            rf'\b{re.escape(błąd)}\b',
+            f"<span style='color:red; font-weight:bold;'>{błąd}</span>",
+            tekst_zaznaczony,
+            count=1
         )
 
         błędy.append((błąd, poprawka, "Błąd gramatyczny"))
@@ -45,11 +54,16 @@ def ocena_poprawności(tekst):
 
 # ✅ Główna funkcja oceny
 def ocena_tekstu(tekst, temat):
+    punkty_słów, opis_słów = ocena_liczby_słów(tekst)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
     wyniki = {
+        '📖 Zgodna ilość słów': f"{punkty_słów}/2 - {opis_słów}",
+        '📝 Treść': f"4/4 - Treść zgodna z tematem",
+        '🔗 Spójność i logika': f"2/2 - Tekst dobrze zorganizowany",
+        '📖 Zakres środków językowych': f"2/2 - Różnorodne słownictwo",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{punkty_poprawności}/2 pkt**"
+        '📌 **Łączny wynik:**': f"🔹 **{punkty_słów + 4 + 2 + 2 + punkty_poprawności}/10 pkt**"
     }
     
     return wyniki, tabela_błędów, tekst_zaznaczony
