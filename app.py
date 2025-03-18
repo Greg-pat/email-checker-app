@@ -47,7 +47,7 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędów) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Funkcja oceniająca treść (0-4 pkt)
 def ocena_treści(tekst, temat):
