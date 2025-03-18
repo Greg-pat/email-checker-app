@@ -6,13 +6,11 @@ import re
 # ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 
-# ✅ Lista tematów egzaminacyjnych i wymagane słownictwo
+# ✅ Lista tematów egzaminacyjnych
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
     "Zaproponuj spotkanie koledze/koleżance z zagranicy": ["meet", "visit", "place", "Poland", "invite", "schedule"],
-    "Opisz swój udział w szkolnym przedstawieniu": ["school play", "role", "stage", "acting", "performance", "nervous"],
-    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
     "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"]
 }
 
@@ -21,7 +19,7 @@ def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
-        return 0, None, tekst  
+        return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
 
     błędy = []
     tekst_zaznaczony = tekst
@@ -35,8 +33,9 @@ def ocena_poprawności(tekst):
         if not błąd:
             continue  
 
+        # Poprawne podkreślenie błędów w Streamlit
         tekst_zaznaczony = tekst_zaznaczony.replace(
-            błąd, f"<span style='color:red; font-weight:bold;'>{błąd}</span>", 1
+            błąd, f"**:red[{błąd}]**", 1
         )
 
         błędy.append((błąd, poprawka, "Błąd gramatyczny"))
@@ -45,15 +44,17 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Główna funkcja oceny (maksymalnie 10 pkt)
 def ocena_tekstu(tekst, temat):
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
+    suma_punktów = min(punkty_poprawności, 10)  
+
     wyniki = {
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{punkty_poprawności}/10 pkt**"
+        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
     }
     
     return wyniki, tabela_błędów, tekst_zaznaczony
@@ -78,7 +79,7 @@ if st.button("✅ Sprawdź"):
             st.dataframe(tabela_błędów, height=300, width=700)
 
         st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(f"<p style='font-size:16px;'>{tekst_zaznaczony}</p>", unsafe_allow_html=True)
+        st.markdown(tekst_zaznaczony)
 
     else:
         st.warning("⚠️ Wpisz tekst przed sprawdzeniem.")
