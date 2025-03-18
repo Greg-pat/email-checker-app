@@ -50,24 +50,25 @@ def ocena_liczby_słów(tekst):
 
 # ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
 def ocena_poprawności(tekst):
-    matches = tool.check(tekst)
+    try:
+        matches = tool.check(tekst)
+    except Exception as e:
+        return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
+
     błędy = []
     tekst_zaznaczony = tekst
 
     for match in matches:
         start = match.offset
         end = start + match.errorLength
-        błąd = tekst[start:end]
+        błąd = tekst[start:end].strip()
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
 
-        if błąd.strip() == "":
+        if not błąd:
             continue  
 
-        tekst_zaznaczony = re.sub(
-            rf'\b{re.escape(błąd)}\b',
-            f"<span style='color:red; font-weight:bold;'>{błąd}</span>",
-            tekst_zaznaczony,
-            count=1
+        tekst_zaznaczony = tekst_zaznaczony.replace(
+            błąd, f"<span style='color:red; font-weight:bold;'>{błąd}</span>", 1
         )
 
         błędy.append((błąd, poprawka, "Błąd gramatyczny"))
