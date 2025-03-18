@@ -8,7 +8,7 @@ import re
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 spell = SpellChecker(language='en')
 
-# ✅ Rozszerzona lista tematów egzaminacyjnych i wymagane słownictwo
+# ✅ Lista tematów egzaminacyjnych i kluczowe słownictwo
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
@@ -76,7 +76,7 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędów) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Główna funkcja oceny
 def ocena_tekstu(tekst, temat):
