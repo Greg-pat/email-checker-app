@@ -44,7 +44,7 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędy) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Główna funkcja oceny (maksymalnie 10 pkt)
 def ocena_tekstu(tekst, temat):
@@ -79,7 +79,7 @@ if st.button("✅ Sprawdź"):
             st.dataframe(tabela_błędów, height=300, width=700)
 
         st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(tekst_zaznaczony)
+        st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
 
     else:
         st.warning("⚠️ Wpisz tekst przed sprawdzeniem.")
