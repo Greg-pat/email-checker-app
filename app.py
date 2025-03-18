@@ -52,7 +52,7 @@ def ocena_liczby_słów(tekst):
 def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
-    except Exception as e:
+    except Exception:
         return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
 
     błędy = []
@@ -85,9 +85,9 @@ def ocena_tekstu(tekst, temat):
     punkty_treści, opis_treści = ocena_treści(tekst, temat)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    # 🔥 **Obliczamy poprawnie sumę punktów (max. 10/10)**
+    # 🔥 **Naprawione obliczanie sumy punktów (max. 10/10)**
     suma_punktów = punkty_słów + punkty_treści + punkty_poprawności
-    suma_punktów = min(suma_punktów, 10)  # ✅ Nie może przekroczyć 10 pkt
+    suma_punktów = max(0, min(suma_punktów, 10))  # ✅ Nie może być ujemna ani przekraczać 10 pkt
 
     wyniki = {
         '📖 Zgodna ilość słów': f"{punkty_słów}/2 - {opis_słów}",
