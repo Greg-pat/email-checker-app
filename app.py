@@ -19,7 +19,7 @@ def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
-        return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
+        return 0, None, tekst  
 
     błędy = []
     tekst_zaznaczony = tekst
@@ -33,7 +33,6 @@ def ocena_poprawności(tekst):
         if not błąd:
             continue  
 
-        # Poprawne podkreślenie błędów w Streamlit
         tekst_zaznaczony = tekst_zaznaczony.replace(
             błąd, f"**:red[{błąd}]**", 1
         )
@@ -44,17 +43,63 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+
+# ✅ Funkcja oceniająca treść (0-4 pkt)
+def ocena_treści(tekst, temat):
+    if temat not in TEMATY:
+        return 0, "Nie wybrano tematu lub temat nieobsługiwany."
+
+    słowa_kluczowe = TEMATY[temat]
+    liczba_wystąpień = sum(1 for słowo in słowa_kluczowe if słowo.lower() in tekst.lower())
+
+    if liczba_wystąpień >= 5:
+        return 4, "Treść w pełni zgodna z tematem. Świetnie!"
+    elif liczba_wystąpień >= 3:
+        return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
+    elif liczba_wystąpień >= 2:
+        return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
+    return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
+
+# ✅ Funkcja oceniająca spójność i logikę (0-2 pkt)
+def ocena_spójności(tekst):
+    if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
+        return 2, "Tekst jest dobrze zorganizowany."
+    return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
+
+# ✅ Funkcja oceniająca zakres środków językowych (0-2 pkt)
+def ocena_zakresu(tekst):
+    unikalne_słowa = set(tekst.lower().split())
+    if len(unikalne_słowa) > 40:
+        return 2, "Bardzo bogate słownictwo!"
+    return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
 
 # ✅ Główna funkcja oceny (maksymalnie 10 pkt)
 def ocena_tekstu(tekst, temat):
+    punkty_treści, opis_treści = ocena_treści(tekst, temat)
+    punkty_spójności, opis_spójności = ocena_spójności(tekst)
+    punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    suma_punktów = min(punkty_poprawności, 10)  
+    suma_punktów = min(punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności, 10)  
+
+    rekomendacje = []
+    if punkty_treści < 4:
+        rekomendacje.append("📌 **Treść**: Dodaj więcej szczegółów i rozwiń swoje pomysły.")
+    if punkty_spójności < 2:
+        rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore, in addition*.")
+    if punkty_zakresu < 2:
+        rekomendacje.append("📌 **Zakres słownictwa**: Użyj bardziej różnorodnych słów.")
+    if punkty_poprawności < 2:
+        rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne.")
 
     wyniki = {
+        '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
+        '🔗 Spójność i logika': f"{punkty_spójności}/2 - {opis_spójności}",
+        '📖 Zakres językowy': f"{punkty_zakresu}/2 - {opis_zakresu}",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
+        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**",
+        '💡 **Jak poprawić pracę?**': rekomendacje
     }
     
     return wyniki, tabela_błędów, tekst_zaznaczony
@@ -72,14 +117,8 @@ if st.button("✅ Sprawdź"):
 
         st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
-            st.write(f"**{klucz}:** {wartość}")
-
-        if tabela_błędów is not None and not tabela_błędów.empty:
-            st.write("### ❌ Lista błędów i poprawek:")
-            st.dataframe(tabela_błędów, height=300, width=700)
-
-        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
-
-    else:
-        st.warning("⚠️ Wpisz tekst przed sprawdzeniem.")
+            if isinstance(wartość, list):
+                for r in wartość:
+                    st.write(r)
+            else:
+                st.write(f"**{klucz}:** {wartość}")
