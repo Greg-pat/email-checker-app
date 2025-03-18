@@ -52,7 +52,7 @@ def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
-        return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
+        return 0, None, tekst  
 
     błędy = []
     tekst_zaznaczony = tekst
@@ -85,15 +85,25 @@ def ocena_tekstu(tekst, temat):
     punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    suma_punktów = punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności
-    suma_punktów = min(suma_punktów, 10)  # ✅ Nie może przekroczyć 10 pkt
+    suma_punktów = min(punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności, 10)  
+
+    rekomendacje = []
+    if punkty_treści < 4:
+        rekomendacje.append("📌 **Treść**: Dodaj więcej szczegółów i rozwiń swoje pomysły. Możesz np. opisać konkretne wydarzenie związane z tematem.")
+    if punkty_spójności < 2:
+        rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore, in addition*.")
+    if punkty_zakresu < 2:
+        rekomendacje.append("📌 **Zakres słownictwa**: Użyj bardziej różnorodnych słów, np. synonimów zamiast powtarzania tych samych wyrazów.")
+    if punkty_poprawności < 2:
+        rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne, używaj czasów zgodnych z kontekstem.")
 
     wyniki = {
         '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
         '🔗 Spójność i logika': f"{punkty_spójności}/2 - {opis_spójności}",
         '📖 Zakres językowy': f"{punkty_zakresu}/2 - {opis_zakresu}",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
+        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**",
+        '💡 **Jak poprawić pracę?**': rekomendacje
     }
     
     return wyniki, tabela_błędów, tekst_zaznaczony
@@ -111,14 +121,9 @@ if st.button("✅ Sprawdź"):
 
         st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
-            st.write(f"**{klucz}:** {wartość}")
-
-        if tabela_błędów is not None and not tabela_błędów.empty:
-            st.write("### ❌ Lista błędów i poprawek:")
-            st.dataframe(tabela_błędów, height=300, width=700)
-
-        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(f"<p style='font-size:16px;'>{tekst_zaznaczony}</p>", unsafe_allow_html=True)
-
-    else:
-        st.warning("⚠️ Wpisz tekst przed sprawdzeniem.")
+            if isinstance(wartość, list):
+                st.write(f"**{klucz}:**")
+                for r in wartość:
+                    st.write(r)
+            else:
+                st.write(f"**{klucz}:** {wartość}")
