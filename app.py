@@ -1,7 +1,6 @@
 import streamlit as st
 import language_tool_python
 import pandas as pd
-import re
 
 # ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
@@ -19,7 +18,7 @@ def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
-        return 0, None, tekst  
+        return 0, None, tekst  # Unikamy zawieszenia, jeśli LanguageTool nie działa
 
     błędy = []
     tekst_zaznaczony = tekst
@@ -43,7 +42,7 @@ def ocena_poprawności(tekst):
         błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
     ) if błędy else None
 
-    return 2 if len(błędy) == 0 else 1 if len(błędów) < 5 else 0, tabela_błędów, tekst_zaznaczony
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
 # ✅ Funkcja oceniająca treść (0-4 pkt)
 def ocena_treści(tekst, temat):
@@ -117,8 +116,11 @@ if st.button("✅ Sprawdź"):
 
         st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
-            if isinstance(wartość, list):
-                for r in wartość:
-                    st.write(r)
-            else:
-                st.write(f"**{klucz}:** {wartość}")
+            st.write(f"**{klucz}:** {wartość}")
+
+        if tabela_błędów is not None and not tabela_błędów.empty:
+            st.write("### ❌ Lista błędów i poprawek:")
+            st.dataframe(tabela_błędów, height=300, width=700)
+
+        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
+        st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
