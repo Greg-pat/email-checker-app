@@ -122,3 +122,9 @@ if st.button("✅ Sprawdź"):
         st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
             st.write(f"**{klucz}:** {wartość}")
+
+        st.write("### ❌ Lista błędów i poprawek:")
+        st.dataframe(tabela_błędów, height=300, width=700)
+
+        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
+        st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
