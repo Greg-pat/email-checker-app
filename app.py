@@ -8,11 +8,37 @@ import re
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 spell = SpellChecker(language='en')
 
-# ✅ Tematy i wymagane słowa kluczowe
+# ✅ Rozszerzona lista tematów egzaminacyjnych i wymagane słownictwo
 TEMATY = {
-    "Blog o nowinkach technicznych": ["technology", "innovation", "AI", "robot", "device", "software", "gadget"],
-    "E-mail o spotkaniu klasowym": ["meeting", "class", "school", "date", "time", "place", "invitation"]
+    "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
+    "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
+    "Zaproponuj spotkanie koledze/koleżance z zagranicy": ["meet", "visit", "place", "Poland", "invite", "schedule"],
+    "Opisz swój udział w szkolnym przedstawieniu": ["school play", "role", "stage", "acting", "performance", "nervous"],
+    "Podziel się wrażeniami z wydarzenia szkolnego": ["school event", "competition", "trip", "concert", "experience"],
+    "Zachęć kolegę do udziału w wydarzeniu w jego szkole": ["should", "join", "fun", "great opportunity", "experience"],
+    "Opisz swoje nowe hobby": ["hobby", "started", "fun", "interesting", "skills", "passion"],
+    "Zachęć znajomego do spróbowania Twojego hobby": ["try", "exciting", "enjoy", "recommend", "great", "fun"],
+    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
+    "Zapytaj kolegę o jego opinię na temat nauki zdalnej": ["online classes", "do you like", "opinion", "better", "pros and cons"],
+    "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["tour", "sightseeing", "historical", "beautiful places"]
 }
+
+# ✅ Funkcja oceniająca zgodność z tematem
+def ocena_treści(tekst, temat):
+    if temat not in TEMATY:
+        return 0, "Nie wybrano tematu lub temat nieobsługiwany."
+
+    słowa_kluczowe = TEMATY[temat]
+    liczba_wystąpień = sum(1 for słowo in słowa_kluczowe if słowo.lower() in tekst.lower())
+
+    if liczba_wystąpień >= 5:
+        return 4, "Treść w pełni zgodna z tematem. Świetnie!"
+    elif liczba_wystąpień >= 3:
+        return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
+    elif liczba_wystąpień >= 2:
+        return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
+    return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
 
 # ✅ Funkcja oceniająca liczbę słów
 def ocena_liczby_słów(tekst):
@@ -55,20 +81,16 @@ def ocena_poprawności(tekst):
 # ✅ Główna funkcja oceny
 def ocena_tekstu(tekst, temat):
     punkty_słów, opis_słów = ocena_liczby_słów(tekst)
-    punkty_treści = 4  # Stała wartość dla zgodności z tematem
-    punkty_spójności = 2  # Stała wartość dla spójności tekstu
-    punkty_zakresu = 2  # Stała wartość dla zakresu językowego
+    punkty_treści, opis_treści = ocena_treści(tekst, temat)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
     # 🔥 **Obliczamy poprawnie sumę punktów (max. 10/10)**
-    suma_punktów = punkty_słów + punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności
+    suma_punktów = punkty_słów + punkty_treści + punkty_poprawności
     suma_punktów = min(suma_punktów, 10)  # ✅ Nie może przekroczyć 10 pkt
 
     wyniki = {
         '📖 Zgodna ilość słów': f"{punkty_słów}/2 - {opis_słów}",
-        '📝 Treść': f"{punkty_treści}/4 - Treść zgodna z tematem",
-        '🔗 Spójność i logika': f"{punkty_spójności}/2 - Tekst dobrze zorganizowany",
-        '📖 Zakres środków językowych': f"{punkty_zakresu}/2 - Różnorodne słownictwo",
+        '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
         '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
     }
