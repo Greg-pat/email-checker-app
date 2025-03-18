@@ -1,30 +1,22 @@
 import streamlit as st
 import language_tool_python
-from spellchecker import SpellChecker
 import pandas as pd
 import re
 
 # ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
-spell = SpellChecker(language='en')
 
-# ✅ Lista tematów egzaminacyjnych i kluczowe słownictwo
+# ✅ Lista tematów egzaminacyjnych i wymagane słownictwo
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
     "Zaproponuj spotkanie koledze/koleżance z zagranicy": ["meet", "visit", "place", "Poland", "invite", "schedule"],
     "Opisz swój udział w szkolnym przedstawieniu": ["school play", "role", "stage", "acting", "performance", "nervous"],
-    "Podziel się wrażeniami z wydarzenia szkolnego": ["school event", "competition", "trip", "concert", "experience"],
-    "Zachęć kolegę do udziału w wydarzeniu w jego szkole": ["should", "join", "fun", "great opportunity", "experience"],
-    "Opisz swoje nowe hobby": ["hobby", "started", "fun", "interesting", "skills", "passion"],
-    "Zachęć znajomego do spróbowania Twojego hobby": ["try", "exciting", "enjoy", "recommend", "great", "fun"],
     "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
-    "Zapytaj kolegę o jego opinię na temat nauki zdalnej": ["online classes", "do you like", "opinion", "better", "pros and cons"],
-    "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["tour", "sightseeing", "historical", "beautiful places"]
+    "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"]
 }
 
-# ✅ Funkcja oceniająca zgodność z tematem
+# ✅ Funkcja oceniająca treść (max 4 pkt)
 def ocena_treści(tekst, temat):
     if temat not in TEMATY:
         return 0, "Nie wybrano tematu lub temat nieobsługiwany."
@@ -40,15 +32,22 @@ def ocena_treści(tekst, temat):
         return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
     return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
 
-# ✅ Funkcja oceniająca liczbę słów
-def ocena_liczby_słów(tekst):
-    liczba_słów = len(tekst.split())
+# ✅ Funkcja oceniająca spójność i logikę (max 2 pkt)
+def ocena_spójności(tekst):
+    if len(tekst) < 50:
+        return 0, "Tekst jest zbyt krótki, by ocenić spójność."
+    if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
+        return 2, "Tekst jest dobrze zorganizowany."
+    return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
 
-    if 50 <= liczba_słów <= 120:
-        return 2, f"✅ Liczba słów: {liczba_słów} - Poprawna długość."
-    return 1, f"⚠️ Liczba słów: {liczba_słów} - Powinno być między 50 a 120."
+# ✅ Funkcja oceniająca zakres środków językowych (max 2 pkt)
+def ocena_zakresu(tekst):
+    unikalne_słowa = set(tekst.lower().split())
+    if len(unikalne_słowa) > 40:
+        return 2, "Bardzo bogate słownictwo!"
+    return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
 
-# ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
+# ✅ Funkcja oceniająca poprawność językową (max 2 pkt)
 def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
@@ -79,19 +78,20 @@ def ocena_poprawności(tekst):
 
     return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
 
-# ✅ Główna funkcja oceny
+# ✅ Główna funkcja oceny (maksymalnie 10 pkt)
 def ocena_tekstu(tekst, temat):
-    punkty_słów, opis_słów = ocena_liczby_słów(tekst)
     punkty_treści, opis_treści = ocena_treści(tekst, temat)
+    punkty_spójności, opis_spójności = ocena_spójności(tekst)
+    punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    # 🔥 **Naprawione obliczanie sumy punktów (max. 10/10)**
-    suma_punktów = punkty_słów + punkty_treści + punkty_poprawności
-    suma_punktów = max(0, min(suma_punktów, 10))  # ✅ Nie może być ujemna ani przekraczać 10 pkt
+    suma_punktów = punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności
+    suma_punktów = min(suma_punktów, 10)  # ✅ Nie może przekroczyć 10 pkt
 
     wyniki = {
-        '📖 Zgodna ilość słów': f"{punkty_słów}/2 - {opis_słów}",
         '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
+        '🔗 Spójność i logika': f"{punkty_spójności}/2 - {opis_spójności}",
+        '📖 Zakres językowy': f"{punkty_zakresu}/2 - {opis_zakresu}",
         '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
         '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**"
     }
