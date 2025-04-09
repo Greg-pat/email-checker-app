@@ -1,29 +1,27 @@
 import streamlit as st
-import pandas as pd
 import language_tool_python
+import pandas as pd
 
-# Inicjalizacja narzędzia do sprawdzania gramatyki
+# ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 
-# Tematy i słowa kluczowe
+# ✅ Lista tematów egzaminacyjnych + przykładowe wypowiedzi
 TEMATY = {
-    "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
-    "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
-    "Zaproponuj spotkanie koledze/koleżance z zagranicy": ["meet", "visit", "place", "Poland", "invite", "schedule"],
-    "Opisz swój udział w szkolnym przedstawieniu": ["school play", "role", "stage", "acting", "performance", "nervous"],
-    "Podziel się wrażeniami z wydarzenia szkolnego": ["event", "competition", "school", "experience", "memorable"],
+    "Opisz swoje ostatnie wakacje": {
+        "słowa": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
+        "przyklad": "Last summer, I went to the mountains with my family. We hiked every day and stayed in a small wooden cabin. The weather was perfect, and we enjoyed delicious local food. My favourite part was swimming in a crystal-clear lake. I took many photos and made wonderful memories. It was the best holiday I've ever had."
+    },
+    "Napisz o swoich planach na najbliższy weekend": {
+        "słowa": ["weekend", "going to", "plan", "cinema", "friends", "family"],
+        "przyklad": "This weekend, I'm going to visit my grandparents in the countryside. On Saturday, we are planning a small barbecue with the whole family. I will help my grandfather in the garden and play board games with my cousins. On Sunday, we will go for a long walk in the forest. I always enjoy spending time there."
+    },
+    "Zaproponuj spotkanie koledze/koleżance z zagranicy": {
+        "słowa": ["meet", "visit", "place", "Poland", "invite", "schedule"],
+        "przyklad": "Hi Alex! I heard you are visiting Poland next month. I'd love to meet and show you some great places in my city. We could go sightseeing, try some traditional Polish food, and maybe attend a concert. Let me know what dates work for you so we can plan everything. Can't wait to see you!"
+    }
 }
 
-# Przykłady wypowiedzi
-PRZYKLADY = {
-    "Opisz swoje ostatnie wakacje": "Last summer, I went to the mountains with my family. We hiked every day and stayed in a small wooden cabin. One day, we saw a deer and took a lot of pictures. I really enjoyed spending time in nature and eating local food. The weather was great and I felt relaxed. I hope to go back there next year!",
-    "Napisz o swoich planach na najbliższy weekend": "This weekend, I’m planning to visit my grandparents in the countryside. We will bake cookies together and walk in the forest. I also want to read a new book and watch a film with my family. On Sunday, we’ll go to church and have a big lunch. I love weekends like this because they help me rest.",
-    "Zaproponuj spotkanie koledze/koleżance z zagranicy": "Hi! I’m so excited that you’re coming to Poland next week! I would love to meet you in Warsaw on Saturday. We can visit the Old Town, try pierogi and go to the Copernicus Science Centre. I will plan everything and send you the details. Let me know what time your train arrives.",
-    "Opisz swój udział w szkolnym przedstawieniu": "Last month, I took part in a school play. I played the main character and wore a beautiful costume. At first, I was very nervous, but when I saw my friends in the audience, I felt more confident. The show went great and everyone clapped at the end. It was one of the best days at school.",
-    "Podziel się wrażeniami z wydarzenia szkolnego": "Last week, we had a school talent show. Many students performed songs, dances and comedy acts. I was amazed by how talented my classmates are! I really liked the group who played the guitar. The whole event was fun and inspiring. I can’t wait for the next show!"
-}
-
-# Ocena poprawności
+# ✅ Funkcja do oceny poprawności
 
 def ocena_poprawności(tekst):
     try:
@@ -39,21 +37,31 @@ def ocena_poprawności(tekst):
         end = start + match.errorLength
         blad = tekst[start:end].strip()
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
+
         if not blad:
             continue
-        tekst_zaznaczony = tekst_zaznaczony.replace(blad, f"**:red[{blad}]**", 1)
+
+        tekst_zaznaczony = tekst_zaznaczony.replace(
+            blad, f"**:red[{blad}]**", 1
+        )
+
         bledy.append((blad, poprawka, "Błąd gramatyczny"))
 
-    tabela_bledow = pd.DataFrame(bledy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]) if bledy else None
+    tabela_bledow = pd.DataFrame(
+        bledy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
+    ) if bledy else None
+
     return 2 if len(bledy) == 0 else 1 if len(bledy) < 5 else 0, tabela_bledow, tekst_zaznaczony
 
-# Ocena treści
+# ✅ Funkcje oceny kryteriów
 
 def ocena_tresci(tekst, temat):
     if temat not in TEMATY:
         return 0, "Nie wybrano tematu lub temat nieobsługiwany."
-    slowa_kluczowe = TEMATY[temat]
-    liczba = sum(1 for slowo in slowa_kluczowe if slowo.lower() in tekst.lower())
+
+    slowa_kluczowe = TEMATY[temat]["słowa"]
+    liczba = sum(1 for s in slowa_kluczowe if s.lower() in tekst.lower())
+
     if liczba >= 5:
         return 4, "Treść w pełni zgodna z tematem. Świetnie!"
     elif liczba >= 3:
@@ -62,65 +70,40 @@ def ocena_tresci(tekst, temat):
         return 2, "Częściowa zgodność."
     return 1 if liczba == 1 else 0, "Treść nie jest zgodna z tematem."
 
-# Ocena spójności
-
 def ocena_spojnosci(tekst):
     if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
         return 2, "Tekst jest dobrze zorganizowany."
     return 1, "Brakuje spójności logicznej."
 
-# Ocena zakresu
-
 def ocena_zakresu(tekst):
-    unikalne = set(tekst.lower().split())
-    if len(unikalne) > 40:
-        return 2, "Bogate słownictwo!"
-    return 1 if len(unikalne) > 20 else 0, "Słownictwo bardzo ubogie."
-
-# Ocena długości
+    slowa = set(tekst.lower().split())
+    if len(slowa) > 40:
+        return 2, "Bardzo bogate słownictwo!"
+    return 1 if len(slowa) > 20 else 0, "Słownictwo bardzo ubogie."
 
 def ocena_dlugosci(tekst):
     liczba = len(tekst.split())
-    if liczba >= 50 and liczba <= 120:
+    if 50 <= liczba <= 120:
         return 2, f"Liczba słów: {liczba} - Poprawna długość."
-    return 1, f"Liczba słów: {liczba} - poza zakresem."
+    return 1 if 30 <= liczba < 50 or liczba > 120 else 0, f"Liczba słów: {liczba} - poza zakresem."
 
-# Ocena całkowita
+# ✅ Główna funkcja
 
-def ocena_tekstu(tekst, temat):
-    p1, o1 = ocena_tresci(tekst, temat)
-    p2, o2 = ocena_spojnosci(tekst)
-    p3, o3 = ocena_zakresu(tekst)
-    p4, o4, zaznaczony = ocena_poprawnosci(tekst)
-    p5, o5 = ocena_dlugosci(tekst)
+def ocena_tekstu(email_text, temat):
+    p1, o1 = ocena_tresci(email_text, temat)
+    p2, o2 = ocena_spojnosci(email_text)
+    p3, o3 = ocena_zakresu(email_text)
+    p4, o4, zaznaczony = ocena_poprawnosci(email_text)
+    p5, o5 = ocena_dlugosci(email_text)
 
     suma = min(p1 + p2 + p3 + p4 + p5, 10)
-
+    przyklad = TEMATY[temat]["przyklad"]
     wynik = {
         "Treść": f"{p1}/4 - {o1}",
         "Spójność": f"{p2}/2 - {o2}",
         "Zakres": f"{p3}/2 - {o3}",
         "Poprawność": f"{p4}/2 - {o4}",
         "Długość": f"{p5}/2 - {o5}",
-        "Łączny wynik": f"{suma}/10 pkt"
+        "Ὄc Łączny wynik:": f"{suma}/10 pkt"
     }
-
-    return wynik, o1, o2, o3, o4, o5, zaznaczony, PRZYKLADY.get(temat, "Brak przykładu."), p1 + p2 + p3 + p4 + p5
-
-# Interfejs
-st.title("\U0001F4E9 Automatyczna ocena wypowiedzi pisemnej")
-selected_temat = st.selectbox("Wybierz temat:", list(TEMATY.keys()))
-email_text = st.text_area("Wpisz wypowiedź:")
-
-if st.button("Sprawdź"):
-    if email_text:
-        wynik, o1, o2, o3, o4, o5, zazn, przyklad, suma = ocena_tekstu(email_text, selected_temat)
-        st.subheader("\U0001F4CA Wyniki oceny:")
-        for k, v in wynik.items():
-            st.write(f"**{k}:** {v}")
-
-        st.subheader("\U0001F4DD Tekst z zaznaczonymi błędami:")
-        st.markdown(zazn, unsafe_allow_html=True)
-
-        st.subheader("\U0001F539 Przykład wypowiedzi:")
-        st.info(przyklad)
+    return wynik, o1, o2, o3, o4, o5, zaznaczony, przyklad, suma
