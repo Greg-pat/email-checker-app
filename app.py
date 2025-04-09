@@ -1,12 +1,9 @@
 import streamlit as st
-import language_tool_python
 import pandas as pd
-from datetime import datetime
+import re
+from datetime import date
 
-# ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
-tool = language_tool_python.LanguageToolPublicAPI('en-GB')
-
-# ✅ Pełna lista tematów egzaminacyjnych
+# Lista tematów i słów kluczowych
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
@@ -16,136 +13,88 @@ TEMATY = {
     "Opisz swoje nowe hobby": ["hobby", "started", "enjoy", "benefits", "passion"],
     "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
     "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"],
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
 }
 
-# ✅ Funkcja oceniająca poprawność językową i podkreślająca błędy
-def ocena_poprawności(tekst):
-    try:
-        matches = tool.check(tekst)
-    except Exception:
-        return 0, None, tekst
+# Prosty słownik błędów - tylko przykłady
+SLABY = {
+    "hte": "the",
+    "becuse": "because",
+    "frend": "friend",
+    "recieve": "receive",
+    "wat": "what",
+    "writting": "writing"
+}
 
-    błędy = []
+# Prosta analiza poprawności
+def analiza_poprawnosci(tekst):
+    bledy = []
+    for slowo in tekst.split():
+        czyste = re.sub(r'[^a-zA-Z]', '', slowo.lower())
+        if czyste in SLABY:
+            bledy.append((slowo, SLABY[czyste], "Literówka"))
+
     tekst_zaznaczony = tekst
+    for blad, poprawka, _ in bledy:
+        tekst_zaznaczony = tekst_zaznaczony.replace(blad, f"**:red[{blad}]**", 1)
 
-    for match in matches:
-        start = match.offset
-        end = start + match.errorLength
-        błąd = tekst[start:end].strip()
-        poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
+    tabela = pd.DataFrame(bledy, columns=["Błąd", "Poprawna forma", "Typ błędu"])
+    return 2 if len(bledy) == 0 else 1 if len(bledy) < 5 else 0, tabela, tekst_zaznaczony
 
-        if not błąd:
-            continue
+def ocena_tresci(tekst, temat):
+    slowa = TEMATY.get(temat, [])
+    trafienia = sum(1 for s in slowa if s in tekst.lower())
+    if trafienia >= 5: return 4, "Treść zgodna z tematem."
+    if trafienia >= 3: return 3, "Dobra zgodność, ale można dodać szczegółów."
+    if trafienia >= 2: return 2, "Częściowa zgodność."
+    if trafienia == 1: return 1, "Tylko jeden aspekt tematu."
+    return 0, "Treść niezgodna z tematem."
 
-        tekst_zaznaczony = tekst_zaznaczony.replace(
-            błąd, f"<span style='color:red; font-weight:bold; text-decoration:underline'>{błąd}</span>", 1
-        )
+def ocena_spojnosci(tekst):
+    if any(w in tekst.lower() for w in ["however", "then", "because", "first", "finally"]):
+        return 2, "Użyto wyrażeń łączących."
+    return 1, "Brakuje spójności logicznej."
 
-        błędy.append((błąd, poprawka, "Błąd gramatyczny"))
-
-    tabela_błędów = pd.DataFrame(
-        błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
-    ) if błędy else None
-
-    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
-
-# ✅ Funkcja oceniająca treść (0-4 pkt)
-def ocena_treści(tekst, temat):
-    if temat not in TEMATY:
-        return 0, "Nie wybrano tematu lub temat nieobsługiwany."
-
-    słowa_kluczowe = TEMATY[temat]
-    liczba_wystąpień = sum(1 for słowo in słowa_kluczowe if słowo.lower() in tekst.lower())
-
-    if liczba_wystąpień >= 5:
-        return 4, "Treść w pełni zgodna z tematem. Świetnie!"
-    elif liczba_wystąpień >= 3:
-        return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
-    elif liczba_wystąpień >= 2:
-        return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
-    return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
-
-# ✅ Funkcja oceniająca spójność i logikę (0-2 pkt)
-def ocena_spójności(tekst):
-    if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
-        return 2, "Tekst jest dobrze zorganizowany."
-    return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
-
-# ✅ Funkcja oceniająca zakres środków językowych (0-2 pkt)
 def ocena_zakresu(tekst):
-    unikalne_słowa = set(tekst.lower().split())
-    if len(unikalne_słowa) > 40:
-        return 2, "Bardzo bogate słownictwo!"
-    return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
+    sl = set(tekst.lower().split())
+    if len(sl) > 40: return 2, "Bogaty zakres słów."
+    if len(sl) > 20: return 1, "Słownictwo przeciętne."
+    return 0, "Słownictwo bardzo ubogie."
 
-# ✅ Funkcja oceniająca długość (0-2 pkt)
-def ocena_długości(tekst):
-    liczba = len(tekst.split())
-    if 50 <= liczba <= 120:
-        return 2, f"Liczba słów: {liczba} - Poprawna długość."
-    elif 40 <= liczba < 50 or liczba > 120:
-        return 1, f"Liczba słów: {liczba} - Blisko wymaganego zakresu."
-    else:
-        return 0, f"Liczba słów: {liczba} - Za mało słów. Wymagane 50–120."
+def ocena_dlugosci(tekst):
+    n = len(tekst.split())
+    if 50 <= n <= 120:
+        return 2, f"Liczba słów: {n} - poprawna."
+    return 1 if n < 50 else 0, f"Liczba słów: {n} - poza zakresem."
 
-# ✅ Główna funkcja oceny (maksymalnie 10 pkt)
-def ocena_tekstu(tekst, temat):
-    punkty_treści, opis_treści = ocena_treści(tekst, temat)
-    punkty_spójności, opis_spójności = ocena_spójności(tekst)
-    punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
-    punkty_długości, opis_długości = ocena_długości(tekst)
-    punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
+# UI Streamlit
+st.set_page_config("Ocena wypowiedzi pisemnej")
+st.title("📩 Automatyczna ocena wypowiedzi pisemnej")
+st.write(f"**Data:** {date.today().isoformat()}")
 
-    suma_punktów = min(punkty_treści + punkty_spójności + punkty_zakresu + punkty_długości + punkty_poprawności, 10)
-
-    rekomendacje = []
-    if punkty_treści < 4:
-        rekomendacje.append("📌 **Treść**: Dodaj więcej szczegółów i rozwiń swoje pomysły.")
-    if punkty_spójności < 2:
-        rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore, in addition*.")
-    if punkty_zakresu < 2:
-        rekomendacje.append("📌 **Zakres słownictwa**: Użyj bardziej różnorodnych słów.")
-    if punkty_długości < 2:
-        rekomendacje.append("📌 **Długość**: Tekst powinien zawierać 50–120 słów.")
-    if punkty_poprawności < 2:
-        rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne.")
-
-    wyniki = {
-        '📏 Liczba słów': f"{punkty_długości}/2 - {opis_długości}",
-        '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
-        '🔗 Spójność i logika': f"{punkty_spójności}/2 - {opis_spójności}",
-        '📖 Zakres językowy': f"{punkty_zakresu}/2 - {opis_zakresu}",
-        '✅ Poprawność językowa': f"{punkty_poprawności}/2 - Im mniej błędów, tym lepiej!",
-        '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**",
-        '💡 **Jak poprawić pracę?**': rekomendacje
-    }
-
-    return wyniki, tabela_błędów, tekst_zaznaczony
-
-# ✅ **Interfejs użytkownika**
-st.set_page_config(page_title="Ocena pisemnych wypowiedzi", layout="centered")
-
-st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
-st.markdown(f"**Data:** {datetime.now().date()}")
-selected_temat = st.selectbox("📌 Wybierz temat:", list(TEMATY.keys()))
-email_text = st.text_area("✏️ Wpisz swój tekst tutaj:")
+temat = st.selectbox("🎯 Wybierz temat:", list(TEMATY.keys()))
+tekst = st.text_area("✍️ Wpisz tutaj swój tekst:")
 
 if st.button("✅ Sprawdź"):
-    if email_text:
-        wynik, tabela_błędów, tekst_zaznaczony = ocena_tekstu(email_text, selected_temat)
+    pkt_tresc, op_tresc = ocena_tresci(tekst, temat)
+    pkt_spojnosc, op_spojnosc = ocena_spojnosci(tekst)
+    pkt_zakres, op_zakres = ocena_zakresu(tekst)
+    pkt_dlugosc, op_dlugosc = ocena_dlugosci(tekst)
+    pkt_popraw, tabela, zaznaczony = analiza_poprawnosci(tekst)
 
-        st.subheader("📊 Wyniki oceny:")
-        for klucz, wartość in wynik.items():
-            if klucz.startswith("💡"):
-                for r in wartość:
-                    st.markdown(r)
-            else:
-                st.markdown(f"**{klucz}:** {wartość}")
+    suma = min(pkt_tresc + pkt_spojnosc + pkt_zakres + pkt_popraw + pkt_dlugosc, 10)
 
-        if tabela_błędów is not None:
-            st.subheader("❌ Lista błędów i poprawek:")
-            st.dataframe(tabela_błędów, height=300, width=700)
+    st.header("📊 Wyniki oceny:")
+    st.write(f"**Treść:** {pkt_tresc}/4 - {op_tresc}")
+    st.write(f"**Spójność:** {pkt_spojnosc}/2 - {op_spojnosc}")
+    st.write(f"**Zakres:** {pkt_zakres}/2 - {op_zakres}")
+    st.write(f"**Poprawność:** {pkt_popraw}/2 - {'Im mniej błędów, tym lepiej!'}")
+    st.write(f"**Długość:** {pkt_dlugosc}/2 - {op_dlugosc}")
+    st.subheader(f"📌 Łączny wynik: {suma}/10 pkt")
 
-        st.subheader("🔍 Tekst z zaznaczonymi błędami:")
-        st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
+    if not tabela.empty:
+        st.subheader("❌ Lista błędów i poprawek:")
+        st.dataframe(tabela)
+
+    st.subheader("📝 Tekst z zaznaczonymi błędami:")
+    st.markdown(zaznaczony, unsafe_allow_html=True)
