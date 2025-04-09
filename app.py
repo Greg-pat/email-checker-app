@@ -1,150 +1,126 @@
 import streamlit as st
-import language_tool_python
 import pandas as pd
+import language_tool_python
 
-# ✅ Inicjalizacja narzędzia do sprawdzania błędów
+# Inicjalizacja narzędzia do sprawdzania gramatyki
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 
-# ✅ Tematy egzaminacyjne i słowa kluczowe
+# Tematy i słowa kluczowe
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
     "Zaproponuj spotkanie koledze/koleżance z zagranicy": ["meet", "visit", "place", "Poland", "invite", "schedule"],
     "Opisz swój udział w szkolnym przedstawieniu": ["school play", "role", "stage", "acting", "performance", "nervous"],
     "Podziel się wrażeniami z wydarzenia szkolnego": ["event", "competition", "school", "experience", "memorable"],
-    "Opisz swoje nowe hobby": ["hobby", "started", "enjoy", "benefits", "passion"],
-    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
-    "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"],
 }
 
-# ✅ Przykładowe idealne wypowiedzi
+# Przykłady wypowiedzi
 PRZYKLADY = {
-    "Opisz swoje ostatnie wakacje": 
-        "Last summer, I went to the mountains with my family. We hiked every day and stayed in a small wooden cabin.",
-    "Napisz o swoich planach na najbliższy weekend":
-        "This weekend, I’m going to visit my grandparents. We will bake a cake and go for a walk in the park.",
-    "Zaproponuj spotkanie koledze/koleżance z zagranicy":
-        "Would you like to meet in Warsaw next Saturday? I can show you the Old Town and we can eat Polish dumplings.",
-    "Opisz swój udział w szkolnym przedstawieniu":
-        "I played the role of a prince in our school play. I was very nervous at first, but in the end it was a lot of fun!",
-    "Podziel się wrażeniami z wydarzenia szkolnego":
-        "Last month, I took part in a school quiz competition. It was exciting and I learned many new facts!",
-    "Opisz swoje nowe hobby":
-        "Recently, I started learning how to play the guitar. It’s difficult, but I love playing my favourite songs.",
-    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną":
-        "During online learning, I missed seeing my friends. However, I enjoyed having more time to sleep.",
-    "Opisz szkolną wycieczkę, na której byłeś":
-        "We went on a school trip to Kraków last spring. I really liked visiting Wawel Castle and the Old Town.",
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce":
-        "Let’s visit Gdańsk together! It’s a beautiful city by the sea and has many interesting museums."
+    "Opisz swoje ostatnie wakacje": "Last summer, I went to the mountains with my family. We hiked every day and stayed in a small wooden cabin. One day, we saw a deer and took a lot of pictures. I really enjoyed spending time in nature and eating local food. The weather was great and I felt relaxed. I hope to go back there next year!",
+    "Napisz o swoich planach na najbliższy weekend": "This weekend, I’m planning to visit my grandparents in the countryside. We will bake cookies together and walk in the forest. I also want to read a new book and watch a film with my family. On Sunday, we’ll go to church and have a big lunch. I love weekends like this because they help me rest.",
+    "Zaproponuj spotkanie koledze/koleżance z zagranicy": "Hi! I’m so excited that you’re coming to Poland next week! I would love to meet you in Warsaw on Saturday. We can visit the Old Town, try pierogi and go to the Copernicus Science Centre. I will plan everything and send you the details. Let me know what time your train arrives.",
+    "Opisz swój udział w szkolnym przedstawieniu": "Last month, I took part in a school play. I played the main character and wore a beautiful costume. At first, I was very nervous, but when I saw my friends in the audience, I felt more confident. The show went great and everyone clapped at the end. It was one of the best days at school.",
+    "Podziel się wrażeniami z wydarzenia szkolnego": "Last week, we had a school talent show. Many students performed songs, dances and comedy acts. I was amazed by how talented my classmates are! I really liked the group who played the guitar. The whole event was fun and inspiring. I can’t wait for the next show!"
 }
 
-# ✅ Sprawdzanie poprawności językowej
+# Ocena poprawności
+
 def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
         return 0, None, tekst
 
-    błędy = []
+    bledy = []
     tekst_zaznaczony = tekst
+
     for match in matches:
         start = match.offset
         end = start + match.errorLength
-        błąd = tekst[start:end].strip()
+        blad = tekst[start:end].strip()
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
-        if not błąd:
+        if not blad:
             continue
-        tekst_zaznaczony = tekst_zaznaczony.replace(błąd, f"**:red[{błąd}]**", 1)
-        błędy.append((błąd, poprawka, "Błąd gramatyczny"))
+        tekst_zaznaczony = tekst_zaznaczony.replace(blad, f"**:red[{blad}]**", 1)
+        bledy.append((blad, poprawka, "Błąd gramatyczny"))
 
-    tabela_błędów = pd.DataFrame(
-        błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
-    ) if błędy else None
+    tabela_bledow = pd.DataFrame(bledy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]) if bledy else None
+    return 2 if len(bledy) == 0 else 1 if len(bledy) < 5 else 0, tabela_bledow, tekst_zaznaczony
 
-    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
+# Ocena treści
 
-# ✅ Ocena treści
-def ocena_treści(tekst, temat):
+def ocena_tresci(tekst, temat):
     if temat not in TEMATY:
         return 0, "Nie wybrano tematu lub temat nieobsługiwany."
-    słowa_kluczowe = TEMATY[temat]
-    liczba_wystąpień = sum(1 for słowo in słowa_kluczowe if słowo.lower() in tekst.lower())
-    if liczba_wystąpień >= 5:
+    slowa_kluczowe = TEMATY[temat]
+    liczba = sum(1 for slowo in slowa_kluczowe if slowo.lower() in tekst.lower())
+    if liczba >= 5:
         return 4, "Treść w pełni zgodna z tematem. Świetnie!"
-    elif liczba_wystąpień >= 3:
+    elif liczba >= 3:
         return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
-    elif liczba_wystąpień >= 2:
-        return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
-    return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
+    elif liczba >= 2:
+        return 2, "Częściowa zgodność."
+    return 1 if liczba == 1 else 0, "Treść nie jest zgodna z tematem."
 
-# ✅ Spójność i logika
-def ocena_spójności(tekst):
+# Ocena spójności
+
+def ocena_spojnosci(tekst):
     if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
         return 2, "Tekst jest dobrze zorganizowany."
-    return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
+    return 1, "Brakuje spójności logicznej."
 
-# ✅ Zakres słownictwa
+# Ocena zakresu
+
 def ocena_zakresu(tekst):
-    unikalne_słowa = set(tekst.lower().split())
-    if len(unikalne_słowa) > 40:
-        return 2, "Bardzo bogate słownictwo!"
-    return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
+    unikalne = set(tekst.lower().split())
+    if len(unikalne) > 40:
+        return 2, "Bogate słownictwo!"
+    return 1 if len(unikalne) > 20 else 0, "Słownictwo bardzo ubogie."
 
-# ✅ Liczba słów
-def ocena_długości(tekst):
+# Ocena długości
+
+def ocena_dlugosci(tekst):
     liczba = len(tekst.split())
-    if 50 <= liczba <= 120:
+    if liczba >= 50 and liczba <= 120:
         return 2, f"Liczba słów: {liczba} - Poprawna długość."
-    return 1 if liczba > 30 else 0, f"Liczba słów: {liczba} - poza zakresem."
+    return 1, f"Liczba słów: {liczba} - poza zakresem."
 
-# ✅ Główna funkcja oceny
+# Ocena całkowita
+
 def ocena_tekstu(tekst, temat):
-    pkt_treść, op_treść = ocena_treści(tekst, temat)
-    pkt_spójn, op_spójn = ocena_spójności(tekst)
-    pkt_zakres, op_zakres = ocena_zakresu(tekst)
-    pkt_popraw, tabela_błędów, tekst_zazn = ocena_poprawności(tekst)
-    pkt_dł, op_dł = ocena_długości(tekst)
+    p1, o1 = ocena_tresci(tekst, temat)
+    p2, o2 = ocena_spojnosci(tekst)
+    p3, o3 = ocena_zakresu(tekst)
+    p4, o4, zaznaczony = ocena_poprawnosci(tekst)
+    p5, o5 = ocena_dlugosci(tekst)
 
-    suma = min(pkt_treść + pkt_spójn + pkt_zakres + pkt_popraw + pkt_dł, 10)
+    suma = min(p1 + p2 + p3 + p4 + p5, 10)
 
-    rekomendacje = []
-    if pkt_treść < 4: rekomendacje.append("📌 **Treść**: Dodaj więcej szczegółów i rozwiń swoje pomysły.")
-    if pkt_spójn < 2: rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore*.")
-    if pkt_zakres < 2: rekomendacje.append("📌 **Zakres**: Użyj bardziej różnorodnych słów.")
-    if pkt_popraw < 2: rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne.")
-
-    wyniki = {
-        "📝 Treść": f"{pkt_treść}/4 - {op_treść}",
-        "🔗 Spójność": f"{pkt_spójn}/2 - {op_spójn}",
-        "📖 Zakres": f"{pkt_zakres}/2 - {op_zakres}",
-        "✅ Poprawność": f"{pkt_popraw}/2 - Im mniej błędów, tym lepiej!",
-        "📏 Długość": f"{pkt_dł}/2 - {op_dł}",
-        "📌 Łączny wynik:": f"🔸 {suma}/10 pkt"
+    wynik = {
+        "Treść": f"{p1}/4 - {o1}",
+        "Spójność": f"{p2}/2 - {o2}",
+        "Zakres": f"{p3}/2 - {o3}",
+        "Poprawność": f"{p4}/2 - {o4}",
+        "Długość": f"{p5}/2 - {o5}",
+        "Łączny wynik": f"{suma}/10 pkt"
     }
 
-    return wyniki, tabela_błędów, tekst_zazn
+    return wynik, o1, o2, o3, o4, o5, zaznaczony, PRZYKLADY.get(temat, "Brak przykładu."), p1 + p2 + p3 + p4 + p5
 
-# ✅ UI Streamlit
-st.set_page_config("Automatyczna ocena", layout="centered")
-st.title("📩 Automatyczna ocena wypowiedzi pisemnej")
-selected_temat = st.selectbox("📌 Wybierz temat:", list(TEMATY.keys()))
-tekst = st.text_area("✍️ Wpisz swoją wypowiedź (50–120 słów):", height=200)
+# Interfejs
+st.title("\U0001F4E9 Automatyczna ocena wypowiedzi pisemnej")
+selected_temat = st.selectbox("Wybierz temat:", list(TEMATY.keys()))
+email_text = st.text_area("Wpisz wypowiedź:")
 
-if st.button("✅ Sprawdź"):
-    wyniki, tabela, tekst_zazn = ocena_tekstu(tekst, selected_temat)
+if st.button("Sprawdź"):
+    if email_text:
+        wynik, o1, o2, o3, o4, o5, zazn, przyklad, suma = ocena_tekstu(email_text, selected_temat)
+        st.subheader("\U0001F4CA Wyniki oceny:")
+        for k, v in wynik.items():
+            st.write(f"**{k}:** {v}")
 
-    st.markdown("## 📊 Wyniki oceny:")
-    for k, v in wyniki.items():
-        st.markdown(f"**{k}** {v}")
+        st.subheader("\U0001F4DD Tekst z zaznaczonymi błędami:")
+        st.markdown(zazn, unsafe_allow_html=True)
 
-    if tabela is not None:
-        st.markdown("### ❌ Lista błędów i poprawek:")
-        st.dataframe(tabela, use_container_width=True)
-
-    st.markdown("### 📝 Tekst z zaznaczonymi błędami:")
-    st.markdown(tekst_zazn, unsafe_allow_html=True)
-
-    st.markdown("### 🟦 Przykład idealnej wypowiedzi:")
-    st.info(PRZYKLADY[selected_temat])
+        st.subheader("\U0001F539 Przykład wypowiedzi:")
+        st.info(przyklad)
