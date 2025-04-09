@@ -1,17 +1,11 @@
 import streamlit as st
 import language_tool_python
 import pandas as pd
-from datetime import date
 
-# Konfiguracja strony
-st.set_page_config(page_title="Ocena pisemnych wypowiedzi", layout="centered")
-st.title("\U0001F4E9 Automatyczna ocena wypowiedzi pisemnej")
-st.write(f"**Data:** {date.today()}")
-
-# Narzędzie do sprawdzania błędów językowych
+# ✅ Inicjalizacja narzędzia do sprawdzania błędów
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
 
-# Tematy egzaminacyjne
+# ✅ Tematy egzaminacyjne i słowa kluczowe
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
@@ -21,24 +15,136 @@ TEMATY = {
     "Opisz swoje nowe hobby": ["hobby", "started", "enjoy", "benefits", "passion"],
     "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
     "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"],
 }
 
-# Przykładowe idealne odpowiedzi
+# ✅ Przykładowe idealne wypowiedzi
 PRZYKLADY = {
-    "Opisz swoje ostatnie wakacje": "Last summer, I went on holiday to the seaside with my family. We stayed in a small hotel near the beach. Every day we swam, played volleyball and ate ice cream. My best memory is a boat trip we took at sunset. The view was beautiful and I took many photos. It was an amazing holiday and I want to go there again. I also made a new friend from another city. We still talk online sometimes.",
-    "Napisz o swoich planach na najbliższy weekend": "This weekend, I am going to visit my grandparents. On Saturday, we are going to cook dinner together and play board games. On Sunday, I plan to go to the cinema with my cousin. We want to watch a new comedy film. I’m really looking forward to this weekend! If the weather is good, we’ll also go for a walk in the park. I hope everything goes as planned.",
-    "Zaproponuj spotkanie koledze/koleżance z zagranicy": "Hi Alex! I’m so happy you are coming to Poland! Would you like to meet on Saturday afternoon? We can go to the Old Town and have lunch in a nice café. Then I can show you the castle and we can take some photos. Let me know if that works for you! If not, we can also meet on Sunday. I can’t wait to see you!",
-    "Opisz swój udział w szkolnym przedstawieniu": "Last month, I took part in a school play. I played the role of a prince. At first, I was very nervous, but later I felt confident. We practised a lot before the performance. My parents and friends came to watch me. It was a great experience and I really enjoyed it. After the show, we took a group photo. I will always remember that day.",
-    "Podziel się wrażeniami z wydarzenia szkolnego": "Last week, our school organised a music competition. I sang a song with my best friend. We practised every day for a week. There were many talented students. We didn’t win, but we had fun. I will never forget this event because it helped me feel more confident. Our teacher said we did a good job. I hope we can take part again next year.",
-    "Opisz swoje nowe hobby": "Two months ago, I started learning how to play the guitar. I practise every day after school. I chose this hobby because I love music. Now I can play simple songs. I think playing an instrument is fun and relaxing. I want to play in a school band in the future. My parents say I’m making good progress. I even played a song for my friends last weekend.",
-    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": "During the pandemic, I had online lessons. I liked learning at home because I could wake up later. However, I missed my friends and teachers. Sometimes it was hard to understand new topics without help. I think online learning has both advantages and disadvantages. It also made me more responsible and independent. I prefer going to school now, but I learned a lot from that time.",
-    "Opisz szkolną wycieczkę, na której byłeś": "Last autumn, I went on a school trip to Kraków. We visited Wawel Castle, the market square and a museum. I took a lot of photos and bought souvenirs. My favourite part was walking around the old streets with my friends. It was an unforgettable trip! We also had lunch in a traditional Polish restaurant. I hope to go there again with my family.",
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": "Hi Emma! When you visit Poland, let’s go sightseeing together! I want to show you Warsaw – the capital city. We can visit the Old Town, the Royal Castle, and go to the Copernicus Science Centre. I think you’ll really enjoy it! We can also try some Polish food like pierogi and go shopping. Let me know what you think and when you’re free!"
+    "Opisz swoje ostatnie wakacje": 
+        "Last summer, I went to the mountains with my family. We hiked every day and stayed in a small wooden cabin.",
+    "Napisz o swoich planach na najbliższy weekend":
+        "This weekend, I’m going to visit my grandparents. We will bake a cake and go for a walk in the park.",
+    "Zaproponuj spotkanie koledze/koleżance z zagranicy":
+        "Would you like to meet in Warsaw next Saturday? I can show you the Old Town and we can eat Polish dumplings.",
+    "Opisz swój udział w szkolnym przedstawieniu":
+        "I played the role of a prince in our school play. I was very nervous at first, but in the end it was a lot of fun!",
+    "Podziel się wrażeniami z wydarzenia szkolnego":
+        "Last month, I took part in a school quiz competition. It was exciting and I learned many new facts!",
+    "Opisz swoje nowe hobby":
+        "Recently, I started learning how to play the guitar. It’s difficult, but I love playing my favourite songs.",
+    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną":
+        "During online learning, I missed seeing my friends. However, I enjoyed having more time to sleep.",
+    "Opisz szkolną wycieczkę, na której byłeś":
+        "We went on a school trip to Kraków last spring. I really liked visiting Wawel Castle and the Old Town.",
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce":
+        "Let’s visit Gdańsk together! It’s a beautiful city by the sea and has many interesting museums."
 }
 
-# ... (pozostała część kodu bez zmian)
+# ✅ Sprawdzanie poprawności językowej
+def ocena_poprawności(tekst):
+    try:
+        matches = tool.check(tekst)
+    except Exception:
+        return 0, None, tekst
 
-# Po ocenie pracy
-        st.markdown("### \U0001F4D6 Przykład idealnej wypowiedzi:")
-        st.info(PRZYKLADY.get(selected_temat, "Brak przykładowej odpowiedzi dla tego tematu."))
+    błędy = []
+    tekst_zaznaczony = tekst
+    for match in matches:
+        start = match.offset
+        end = start + match.errorLength
+        błąd = tekst[start:end].strip()
+        poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
+        if not błąd:
+            continue
+        tekst_zaznaczony = tekst_zaznaczony.replace(błąd, f"**:red[{błąd}]**", 1)
+        błędy.append((błąd, poprawka, "Błąd gramatyczny"))
+
+    tabela_błędów = pd.DataFrame(
+        błędy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]
+    ) if błędy else None
+
+    return 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0, tabela_błędów, tekst_zaznaczony
+
+# ✅ Ocena treści
+def ocena_treści(tekst, temat):
+    if temat not in TEMATY:
+        return 0, "Nie wybrano tematu lub temat nieobsługiwany."
+    słowa_kluczowe = TEMATY[temat]
+    liczba_wystąpień = sum(1 for słowo in słowa_kluczowe if słowo.lower() in tekst.lower())
+    if liczba_wystąpień >= 5:
+        return 4, "Treść w pełni zgodna z tematem. Świetnie!"
+    elif liczba_wystąpień >= 3:
+        return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
+    elif liczba_wystąpień >= 2:
+        return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
+    return 1 if liczba_wystąpień == 1 else 0, "Treść nie jest zgodna z tematem."
+
+# ✅ Spójność i logika
+def ocena_spójności(tekst):
+    if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
+        return 2, "Tekst jest dobrze zorganizowany."
+    return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
+
+# ✅ Zakres słownictwa
+def ocena_zakresu(tekst):
+    unikalne_słowa = set(tekst.lower().split())
+    if len(unikalne_słowa) > 40:
+        return 2, "Bardzo bogate słownictwo!"
+    return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
+
+# ✅ Liczba słów
+def ocena_długości(tekst):
+    liczba = len(tekst.split())
+    if 50 <= liczba <= 120:
+        return 2, f"Liczba słów: {liczba} - Poprawna długość."
+    return 1 if liczba > 30 else 0, f"Liczba słów: {liczba} - poza zakresem."
+
+# ✅ Główna funkcja oceny
+def ocena_tekstu(tekst, temat):
+    pkt_treść, op_treść = ocena_treści(tekst, temat)
+    pkt_spójn, op_spójn = ocena_spójności(tekst)
+    pkt_zakres, op_zakres = ocena_zakresu(tekst)
+    pkt_popraw, tabela_błędów, tekst_zazn = ocena_poprawności(tekst)
+    pkt_dł, op_dł = ocena_długości(tekst)
+
+    suma = min(pkt_treść + pkt_spójn + pkt_zakres + pkt_popraw + pkt_dł, 10)
+
+    rekomendacje = []
+    if pkt_treść < 4: rekomendacje.append("📌 **Treść**: Dodaj więcej szczegółów i rozwiń swoje pomysły.")
+    if pkt_spójn < 2: rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore*.")
+    if pkt_zakres < 2: rekomendacje.append("📌 **Zakres**: Użyj bardziej różnorodnych słów.")
+    if pkt_popraw < 2: rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne.")
+
+    wyniki = {
+        "📝 Treść": f"{pkt_treść}/4 - {op_treść}",
+        "🔗 Spójność": f"{pkt_spójn}/2 - {op_spójn}",
+        "📖 Zakres": f"{pkt_zakres}/2 - {op_zakres}",
+        "✅ Poprawność": f"{pkt_popraw}/2 - Im mniej błędów, tym lepiej!",
+        "📏 Długość": f"{pkt_dł}/2 - {op_dł}",
+        "📌 Łączny wynik:": f"🔸 {suma}/10 pkt"
+    }
+
+    return wyniki, tabela_błędów, tekst_zazn
+
+# ✅ UI Streamlit
+st.set_page_config("Automatyczna ocena", layout="centered")
+st.title("📩 Automatyczna ocena wypowiedzi pisemnej")
+selected_temat = st.selectbox("📌 Wybierz temat:", list(TEMATY.keys()))
+tekst = st.text_area("✍️ Wpisz swoją wypowiedź (50–120 słów):", height=200)
+
+if st.button("✅ Sprawdź"):
+    wyniki, tabela, tekst_zazn = ocena_tekstu(tekst, selected_temat)
+
+    st.markdown("## 📊 Wyniki oceny:")
+    for k, v in wyniki.items():
+        st.markdown(f"**{k}** {v}")
+
+    if tabela is not None:
+        st.markdown("### ❌ Lista błędów i poprawek:")
+        st.dataframe(tabela, use_container_width=True)
+
+    st.markdown("### 📝 Tekst z zaznaczonymi błędami:")
+    st.markdown(tekst_zazn, unsafe_allow_html=True)
+
+    st.markdown("### 🟦 Przykład idealnej wypowiedzi:")
+    st.info(PRZYKLADY[selected_temat])
