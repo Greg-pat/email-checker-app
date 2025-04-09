@@ -24,97 +24,21 @@ TEMATY = {
     "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
 }
 
-# Ocena poprawności językowej
+# Przykładowe idealne odpowiedzi
+PRZYKLADY = {
+    "Opisz swoje ostatnie wakacje": "Last summer, I went on holiday to the seaside with my family. We stayed in a small hotel near the beach. Every day we swam, played volleyball and ate ice cream. My best memory is a boat trip we took at sunset. The view was beautiful and I took many photos. It was an amazing holiday and I want to go there again. I also made a new friend from another city. We still talk online sometimes.",
+    "Napisz o swoich planach na najbliższy weekend": "This weekend, I am going to visit my grandparents. On Saturday, we are going to cook dinner together and play board games. On Sunday, I plan to go to the cinema with my cousin. We want to watch a new comedy film. I’m really looking forward to this weekend! If the weather is good, we’ll also go for a walk in the park. I hope everything goes as planned.",
+    "Zaproponuj spotkanie koledze/koleżance z zagranicy": "Hi Alex! I’m so happy you are coming to Poland! Would you like to meet on Saturday afternoon? We can go to the Old Town and have lunch in a nice café. Then I can show you the castle and we can take some photos. Let me know if that works for you! If not, we can also meet on Sunday. I can’t wait to see you!",
+    "Opisz swój udział w szkolnym przedstawieniu": "Last month, I took part in a school play. I played the role of a prince. At first, I was very nervous, but later I felt confident. We practised a lot before the performance. My parents and friends came to watch me. It was a great experience and I really enjoyed it. After the show, we took a group photo. I will always remember that day.",
+    "Podziel się wrażeniami z wydarzenia szkolnego": "Last week, our school organised a music competition. I sang a song with my best friend. We practised every day for a week. There were many talented students. We didn’t win, but we had fun. I will never forget this event because it helped me feel more confident. Our teacher said we did a good job. I hope we can take part again next year.",
+    "Opisz swoje nowe hobby": "Two months ago, I started learning how to play the guitar. I practise every day after school. I chose this hobby because I love music. Now I can play simple songs. I think playing an instrument is fun and relaxing. I want to play in a school band in the future. My parents say I’m making good progress. I even played a song for my friends last weekend.",
+    "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": "During the pandemic, I had online lessons. I liked learning at home because I could wake up later. However, I missed my friends and teachers. Sometimes it was hard to understand new topics without help. I think online learning has both advantages and disadvantages. It also made me more responsible and independent. I prefer going to school now, but I learned a lot from that time.",
+    "Opisz szkolną wycieczkę, na której byłeś": "Last autumn, I went on a school trip to Kraków. We visited Wawel Castle, the market square and a museum. I took a lot of photos and bought souvenirs. My favourite part was walking around the old streets with my friends. It was an unforgettable trip! We also had lunch in a traditional Polish restaurant. I hope to go there again with my family.",
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": "Hi Emma! When you visit Poland, let’s go sightseeing together! I want to show you Warsaw – the capital city. We can visit the Old Town, the Royal Castle, and go to the Copernicus Science Centre. I think you’ll really enjoy it! We can also try some Polish food like pierogi and go shopping. Let me know what you think and when you’re free!"
+}
 
-def ocena_poprawności(tekst):
-    matches = tool.check(tekst)
-    błędy = []
-    tekst_zaznaczony = tekst
+# ... (pozostała część kodu bez zmian)
 
-    for match in matches:
-        start = match.offset
-        end = start + match.errorLength
-        błąd = tekst[start:end].strip()
-        poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
-        if not błąd:
-            continue
-        tekst_zaznaczony = tekst_zaznaczony.replace(błąd, f"**:red[{błąd}]**", 1)
-        błędy.append((błąd, poprawka, "Błąd gramatyczny"))
-
-    tabela_błędów = pd.DataFrame(błędy, columns=["Błąd", "Poprawna forma", "Typ błędu"]) if błędy else None
-    pkt = 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0
-    return pkt, tabela_błędów, tekst_zaznaczony
-
-# Ocena treści
-
-def ocena_treści(tekst, temat):
-    słowa_kluczowe = TEMATY.get(temat, [])
-    liczba = sum(1 for s in słowa_kluczowe if s in tekst.lower())
-    if liczba >= 5:
-        return 4, "Treść w pełni zgodna z tematem. Świetnie!"
-    elif liczba >= 3:
-        return 3, "Dobra zgodność, ale można dodać więcej szczegółów."
-    elif liczba >= 2:
-        return 2, "Częściowa zgodność."
-    elif liczba == 1:
-        return 1, "Tylko minimalna zgodność z tematem."
-    return 0, "Treść nie jest zgodna z tematem."
-
-# Ocena spójności
-
-def ocena_spójności(tekst):
-    if any(x in tekst.lower() for x in ["however", "therefore", "finally", "in conclusion"]):
-        return 2, "Tekst dobrze zorganizowany."
-    return 1, "Brakuje spójności logicznej."
-
-# Zakres językowy
-
-def ocena_zakresu(tekst):
-    wyrazy = set(tekst.lower().split())
-    if len(wyrazy) > 40:
-        return 2, "Bogate słownictwo."
-    elif len(wyrazy) > 20:
-        return 1, "Słownictwo umiarkowane."
-    return 0, "Słownictwo bardzo ubogie."
-
-# Długość
-
-def ocena_dlugosci(tekst):
-    liczba = len(tekst.split())
-    if 50 <= liczba <= 120:
-        return 2, f"Liczba słów: {liczba} - Poprawna długość."
-    return 1, f"Liczba słów: {liczba} - poza zakresem."
-
-# Ocena całościowa
-
-def ocena_tekstu(tekst, temat):
-    t, ot = ocena_treści(tekst, temat)
-    s, os = ocena_spójności(tekst)
-    z, oz = ocena_zakresu(tekst)
-    p, tabela, zaznaczony = ocena_poprawności(tekst)
-    d, od = ocena_dlugosci(tekst)
-    suma = t + s + z + p + d
-    suma = min(suma, 10)
-    return t, s, z, p, d, suma, ot, os, oz, od, tabela, zaznaczony
-
-# UI
-selected_temat = st.selectbox("Wybierz temat wypowiedzi:", list(TEMATY.keys()))
-tekst = st.text_area("Wpisz swój tekst:")
-if st.button("Sprawdź"):
-    if tekst:
-        t, s, z, p, d, suma, ot, os, oz, od, tabela, zaznaczony = ocena_tekstu(tekst, selected_temat)
-
-        st.markdown("## \U0001F4CA Wyniki oceny:")
-        st.markdown(f"**Treść:** {t}/4 - {ot}")
-        st.markdown(f"**Spójność:** {s}/2 - {os}")
-        st.markdown(f"**Zakres:** {z}/2 - {oz}")
-        st.markdown(f"**Poprawność:** {p}/2 - Im mniej błędów, tym lepiej!")
-        st.markdown(f"**Długość:** {d}/2 - {od}")
-        st.markdown(f"### \U0001F4CC Łączny wynik: **{suma}/10 pkt**")
-
-        if tabela is not None:
-            st.markdown("### ❌ Lista błędów i poprawek:")
-            st.dataframe(tabela, use_container_width=True)
-
-        st.markdown("### \U0001F4DD Tekst z zaznaczonymi błędami:")
-        st.markdown(zaznaczony, unsafe_allow_html=True)
+# Po ocenie pracy
+        st.markdown("### \U0001F4D6 Przykład idealnej wypowiedzi:")
+        st.info(PRZYKLADY.get(selected_temat, "Brak przykładowej odpowiedzi dla tego tematu."))
