@@ -1,6 +1,7 @@
 import streamlit as st
 import language_tool_python
 import pandas as pd
+from datetime import datetime
 
 # ✅ Pobieramy narzędzie LanguageTool do sprawdzania gramatyki (British English)
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
@@ -23,7 +24,7 @@ def ocena_poprawności(tekst):
     try:
         matches = tool.check(tekst)
     except Exception:
-        return 0, None, tekst  
+        return 0, None, tekst
 
     błędy = []
     tekst_zaznaczony = tekst
@@ -35,10 +36,10 @@ def ocena_poprawności(tekst):
         poprawka = match.replacements[0] if match.replacements else "Brak propozycji"
 
         if not błąd:
-            continue  
+            continue
 
         tekst_zaznaczony = tekst_zaznaczony.replace(
-            błąd, f"**:red[{błąd}]**", 1
+            błąd, f"<span style='color:red; font-weight:bold; text-decoration:underline'>{błąd}</span>", 1
         )
 
         błędy.append((błąd, poprawka, "Błąd gramatyczny"))
@@ -78,14 +79,25 @@ def ocena_zakresu(tekst):
         return 2, "Bardzo bogate słownictwo!"
     return 1 if len(unikalne_słowa) > 20 else 0, "Słownictwo jest zbyt proste."
 
+# ✅ Funkcja oceniająca długość (0-2 pkt)
+def ocena_długości(tekst):
+    liczba = len(tekst.split())
+    if 50 <= liczba <= 120:
+        return 2, f"Liczba słów: {liczba} - Poprawna długość."
+    elif 40 <= liczba < 50 or liczba > 120:
+        return 1, f"Liczba słów: {liczba} - Blisko wymaganego zakresu."
+    else:
+        return 0, f"Liczba słów: {liczba} - Za mało słów. Wymagane 50–120."
+
 # ✅ Główna funkcja oceny (maksymalnie 10 pkt)
 def ocena_tekstu(tekst, temat):
     punkty_treści, opis_treści = ocena_treści(tekst, temat)
     punkty_spójności, opis_spójności = ocena_spójności(tekst)
     punkty_zakresu, opis_zakresu = ocena_zakresu(tekst)
+    punkty_długości, opis_długości = ocena_długości(tekst)
     punkty_poprawności, tabela_błędów, tekst_zaznaczony = ocena_poprawności(tekst)
 
-    suma_punktów = min(punkty_treści + punkty_spójności + punkty_zakresu + punkty_poprawności, 10)  
+    suma_punktów = min(punkty_treści + punkty_spójności + punkty_zakresu + punkty_długości + punkty_poprawności, 10)
 
     rekomendacje = []
     if punkty_treści < 4:
@@ -94,10 +106,13 @@ def ocena_tekstu(tekst, temat):
         rekomendacje.append("📌 **Spójność**: Użyj więcej wyrażeń łączących, np. *however, therefore, in addition*.")
     if punkty_zakresu < 2:
         rekomendacje.append("📌 **Zakres słownictwa**: Użyj bardziej różnorodnych słów.")
+    if punkty_długości < 2:
+        rekomendacje.append("📌 **Długość**: Tekst powinien zawierać 50–120 słów.")
     if punkty_poprawności < 2:
         rekomendacje.append("📌 **Poprawność**: Sprawdź błędy gramatyczne i ortograficzne.")
 
     wyniki = {
+        '📏 Liczba słów': f"{punkty_długości}/2 - {opis_długości}",
         '📝 Treść': f"{punkty_treści}/4 - {opis_treści}",
         '🔗 Spójność i logika': f"{punkty_spójności}/2 - {opis_spójności}",
         '📖 Zakres językowy': f"{punkty_zakresu}/2 - {opis_zakresu}",
@@ -105,13 +120,14 @@ def ocena_tekstu(tekst, temat):
         '📌 **Łączny wynik:**': f"🔹 **{suma_punktów}/10 pkt**",
         '💡 **Jak poprawić pracę?**': rekomendacje
     }
-    
+
     return wyniki, tabela_błędów, tekst_zaznaczony
 
 # ✅ **Interfejs użytkownika**
 st.set_page_config(page_title="Ocena pisemnych wypowiedzi", layout="centered")
 
 st.title("📩 Automatyczna ocena pisemnych wypowiedzi")
+st.markdown(f"**Data:** {datetime.now().date()}")
 selected_temat = st.selectbox("📌 Wybierz temat:", list(TEMATY.keys()))
 email_text = st.text_area("✏️ Wpisz swój tekst tutaj:")
 
@@ -121,10 +137,15 @@ if st.button("✅ Sprawdź"):
 
         st.subheader("📊 Wyniki oceny:")
         for klucz, wartość in wynik.items():
-            st.write(f"**{klucz}:** {wartość}")
+            if klucz.startswith("💡"):
+                for r in wartość:
+                    st.markdown(r)
+            else:
+                st.markdown(f"**{klucz}:** {wartość}")
 
-        st.write("### ❌ Lista błędów i poprawek:")
-        st.dataframe(tabela_błędów, height=300, width=700)
+        if tabela_błędów is not None:
+            st.subheader("❌ Lista błędów i poprawek:")
+            st.dataframe(tabela_błędów, height=300, width=700)
 
-        st.write("### 🔍 Tekst z zaznaczonymi błędami:")
+        st.subheader("🔍 Tekst z zaznaczonymi błędami:")
         st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
