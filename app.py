@@ -27,7 +27,7 @@ TEMATY = {
     "Opisz swoje nowe hobby": ["hobby", "started", "enjoy", "benefits", "passion"],
     "Opowiedz o swoich doświadczeniach związanych z nauką zdalną": ["online learning", "advantages", "disadvantages", "difficult"],
     "Opisz szkolną wycieczkę, na której byłeś": ["school trip", "visited", "museum", "amazing", "historical"],
-    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"],
+    "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
 }
 
 def ocena_liczby_slow(tekst):
@@ -108,3 +108,24 @@ def ocena_tekstu(tekst, temat):
         "Zgodna ilość słów": f"{pkt_slow}/1 - {info_slow}",
         "Treść": f"{pkt_tresc}/4 - {info_tresc}",
         "Spójność i logika": f"{pkt_spojnosc}/2 - {info_spojnosc}",
+        "Zakres językowy": f"{pkt_zakres}/2 - {info_zakres}",
+        "Poprawność językowa": f"{pkt_poprawnosci}/2 - Im mniej błędów, tym lepiej!",
+        "Łączny wynik": f"{suma}/10 pkt"
+    }
+    return wyniki, tabela, tekst_zazn, suma
+
+selected_temat = st.selectbox("Wybierz temat:", list(TEMATY.keys()))
+email_text = st.text_area("Wpisz swój tekst tutaj:")
+
+if st.button("Sprawdź") and email_text:
+    wynik, tabela, tekst_zaznaczony, suma = ocena_tekstu(email_text, selected_temat)
+    st.subheader("Wyniki oceny:")
+    for k, v in wynik.items():
+        st.write(f"**{k}**: {v}")
+    if tabela is not None:
+        st.write("### Lista błędów i poprawek:")
+        st.dataframe(tabela)
+    st.write("### Tekst z zaznaczonymi błędami:")
+    st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
+    pdf_data = generuj_pdf(wynik, email_text, selected_temat)
+    st.download_button(label="📄 Pobierz raport PDF", data=pdf_data, file_name="raport_oceny.pdf")
