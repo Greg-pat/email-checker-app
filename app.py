@@ -1,6 +1,7 @@
 import streamlit as st
 import language_tool_python
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Narzędzie do sprawdzania pisowni i gramatyki
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
@@ -18,8 +19,6 @@ TEMATY = {
     "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"],
 }
 
-# Ocena liczby słów
-
 def ocena_liczby_słów(tekst):
     liczba = len(tekst.split())
     if 50 <= liczba <= 120:
@@ -28,8 +27,6 @@ def ocena_liczby_słów(tekst):
         return 1, f"⚠️ Liczba słów: {liczba} – Zbyt krótka wypowiedź."
     else:
         return 1, f"⚠️ Liczba słów: {liczba} – Zbyt długa wypowiedź (max 120 słów)."
-
-# Ocena treści
 
 def ocena_treści(tekst, temat):
     if temat not in TEMATY:
@@ -44,14 +41,10 @@ def ocena_treści(tekst, temat):
         return 2, "Częściowa zgodność, rozwinięcie tematu jest niewystarczające."
     return 1 if trafienia == 1 else 0, "Treść nie jest zgodna z tematem."
 
-# Spójność i logika
-
 def ocena_spójności(tekst):
     if any(s in tekst.lower() for s in ["however", "therefore", "firstly", "in conclusion"]):
         return 2, "Tekst jest dobrze zorganizowany."
     return 1, "Spójność może być lepsza – użyj więcej wyrażeń łączących."
-
-# Zakres środków językowych
 
 def ocena_zakresu(tekst):
     unikalne = set(tekst.lower().split())
@@ -59,13 +52,10 @@ def ocena_zakresu(tekst):
         return 2, "Bardzo bogate słownictwo!"
     return 1 if len(unikalne) > 20 else 0, "Słownictwo jest zbyt proste."
 
-# Poprawność językowa
-
 def ocena_poprawności(tekst):
     matches = tool.check(tekst)
     bledy = []
     tekst_zazn = tekst
-
     for match in matches:
         start = match.offset
         end = start + match.errorLength
@@ -74,11 +64,15 @@ def ocena_poprawności(tekst):
         if not blad: continue
         tekst_zazn = tekst_zazn.replace(blad, f"**:red[{blad}]**", 1)
         bledy.append((blad, poprawka, "Błąd gramatyczny"))
-
     tabela = pd.DataFrame(bledy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]) if bledy else None
     return 2 if len(bledy) == 0 else 1 if len(bledy) < 5 else 0, tabela, tekst_zazn
 
-# Ocena łączna
+def pokaz_wykres_oceny(punkty):
+    kategorie = ["Słowa", "Treść", "Spójność", "Zakres", "Poprawność"]
+    fig, ax = plt.subplots()
+    ax.bar(kategorie, punkty, color='skyblue')
+    ax.set_ylim(0, 4)
+    st.pyplot(fig)
 
 def ocena_tekstu(tekst, temat):
     pkt_slow, opis_slow = ocena_liczby_słów(tekst)
@@ -86,8 +80,8 @@ def ocena_tekstu(tekst, temat):
     pkt_spojnosc, opis_spojnosc = ocena_spójności(tekst)
     pkt_zakres, opis_zakres = ocena_zakresu(tekst)
     pkt_poprawnosci, tabela, tekst_zazn = ocena_poprawności(tekst)
-
     suma = min(pkt_slow + pkt_tresc + pkt_spojnosc + pkt_zakres + pkt_poprawnosci, 10)
+    punkty_lista = [pkt_slow, pkt_tresc, pkt_spojnosc, pkt_zakres, pkt_poprawnosci]
 
     wyniki = {
         "📖 Zgodna liczba słów": f"{pkt_slow}/2 - {opis_slow}",
@@ -98,7 +92,7 @@ def ocena_tekstu(tekst, temat):
         "📌 Łączny wynik::": f"🔹 {suma}/10 pkt"
     }
 
-    return wyniki, tabela, tekst_zazn
+    return wyniki, tabela, tekst_zazn, punkty_lista
 
 # Streamlit UI
 st.set_page_config(page_title="Ocena wypowiedzi pisemnej", layout="centered")
@@ -109,11 +103,14 @@ email_text = st.text_area("✏️ Wpisz swój tekst tutaj:")
 
 if st.button("✅ Sprawdź"):
     if email_text:
-        wynik, tabela_bledow, tekst_zaznaczony = ocena_tekstu(email_text, selected_temat)
+        wynik, tabela_bledow, tekst_zaznaczony, punkty = ocena_tekstu(email_text, selected_temat)
 
         st.subheader(":bar_chart: Wyniki oceny:")
         for klucz, wartosc in wynik.items():
             st.write(f"**{klucz}**: {wartosc}")
+
+        st.write("### 🌐 Porównanie ocen (wykres):")
+        pokaz_wykres_oceny(punkty)
 
         if tabela_bledow is not None:
             st.write("### ❌ Lista błędów i poprawek:")
@@ -121,3 +118,12 @@ if st.button("✅ Sprawdź"):
 
         st.write("### 🔍 Tekst z zaznaczonymi błędami:")
         st.markdown(tekst_zaznaczony, unsafe_allow_html=True)
+
+        st.write("### 🔹 Jak poprawić wynik?")
+        st.markdown("- **Treść:** Dodaj więcej szczegółów i rozwiń swoje pomysły.\n"
+                    "- **Spójność:** Użyj więcej wyrażeń łączących, np. _however_, _therefore_, _in addition_.\n"
+                    "- **Zakres słownictwa:** Użyj bardziej różnorodnych słów.\n"
+                    "- **Poprawność:** Sprawdź błędy gramatyczne i ortograficzne.")
+
+        st.markdown("---")
+        st.markdown("**🔗 [Zobacz przykładową wypowiedź 10/10 pkt](https://example.com/model-answer)**")
