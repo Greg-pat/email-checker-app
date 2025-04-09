@@ -1,5 +1,4 @@
 streamlit
-textblob
-language_tool_python
-pyspellchecker
+language-tool-python
+fpdf
 pandas
