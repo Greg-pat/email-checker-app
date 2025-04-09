@@ -1,7 +1,6 @@
 import streamlit as st
 import language_tool_python
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # Narzędzie do sprawdzania pisowni i gramatyki
 tool = language_tool_python.LanguageToolPublicAPI('en-GB')
@@ -67,13 +66,6 @@ def ocena_poprawności(tekst):
     tabela = pd.DataFrame(bledy, columns=["🔴 Błąd", "✅ Poprawna forma", "ℹ️ Typ błędu"]) if bledy else None
     return 2 if len(bledy) == 0 else 1 if len(bledy) < 5 else 0, tabela, tekst_zazn
 
-def pokaz_wykres_oceny(punkty):
-    kategorie = ["Słowa", "Treść", "Spójność", "Zakres", "Poprawność"]
-    fig, ax = plt.subplots()
-    ax.bar(kategorie, punkty, color='skyblue')
-    ax.set_ylim(0, 4)
-    st.pyplot(fig)
-
 def ocena_tekstu(tekst, temat):
     pkt_slow, opis_slow = ocena_liczby_słów(tekst)
     pkt_tresc, opis_tresc = ocena_treści(tekst, temat)
@@ -108,9 +100,6 @@ if st.button("✅ Sprawdź"):
         st.subheader(":bar_chart: Wyniki oceny:")
         for klucz, wartosc in wynik.items():
             st.write(f"**{klucz}**: {wartosc}")
-
-        st.write("### 🌐 Porównanie ocen (wykres):")
-        pokaz_wykres_oceny(punkty)
 
         if tabela_bledow is not None:
             st.write("### ❌ Lista błędów i poprawek:")
