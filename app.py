@@ -14,7 +14,7 @@ st.set_page_config(page_title="Ocena wypowiedzi pisemnej", layout="centered")
 col1, col2 = st.columns([1, 8])
 with col1:
     try:
-        st.image("logo_mindbloom.jpg", width=100)
+        st.image("MindBloom jasne złoto zielony.png", width=120)
     except:
         st.markdown("### 🌱")
 with col2:
@@ -34,5 +34,29 @@ TEMATY = {
     "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
 }
 
-# (pozostała część kodu pozostaje bez zmian)
-# UWAGA: ścieżka do logo w PDF nadal to "logo_mindbloom.jpg" – upewnij się, że jest w katalogu aplikacji
+# UWAGA: ścieżka do logo w PDF również musi być dostosowana:
+LOGO_PDF_PATH = "MindBloom jasne złoto zielony.png"
+
+def generuj_pdf(wyniki, tekst, temat):
+    pdf = FPDF()
+    pdf.add_page()
+    try:
+        pdf.image(LOGO_PDF_PATH, x=10, y=8, w=40)
+    except:
+        pass
+    pdf.set_font("Arial", size=12)
+    pdf.ln(25)
+    pdf.cell(200, 10, txt="Wyniki oceny wypowiedzi pisemnej", ln=True, align='C')
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, f"Temat: {temat}")
+    pdf.multi_cell(0, 10, f"Data: {datetime.now().strftime('%Y-%m-%d')}")
+    for k, v in wyniki.items():
+        pdf.multi_cell(0, 10, f"{k}: {v}")
+    pdf.ln(5)
+    pdf.multi_cell(0, 10, "Treść pracy:")
+    pdf.multi_cell(0, 10, tekst)
+    buffer = BytesIO()
+    pdf.output(buffer)
+    return buffer
+
+# (reszta kodu pozostaje bez zmian — ocena i wyświetlanie wyników)
