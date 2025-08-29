@@ -332,11 +332,15 @@ if st.session_state["historia"]:
     st.dataframe(hist_df, use_container_width=True)
 
     st.subheader("📈 Twój progres")
+    # Ostatnie 10 prób
     hist_plot = hist_df.tail(10).reset_index(drop=True)
+
     fig, ax = plt.subplots()
     ax.plot(hist_plot.index + 1, hist_plot["punkty"], marker="o")
     ax.set_xlabel("Próba")
     ax.set_ylabel("Punkty")
     ax.set_ylim(0, 10)
+    ax.set_xticks(range(1, len(hist_plot) + 1))  # ✅ tylko liczby całkowite na osi X
     ax.set_title("Postępy w ocenach (ostatnie 10 prób)")
     st.pyplot(fig)
+
