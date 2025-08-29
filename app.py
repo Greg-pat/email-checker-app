@@ -73,6 +73,15 @@ st.set_page_config("Ocena wypowiedzi pisemnej")
 st.title("📩 Automatyczna ocena wypowiedzi pisemnej")
 st.write(f"**Data:** {date.today().isoformat()}")
 
+# Awatar coacha
+st.markdown("""
+    <div style='display: flex; align-items: center; gap: 10px;'>
+        <img src='https://cdn-icons-png.flaticon.com/512/4712/4712109.png' width='60'/>
+        <span style='font-size: 18px;'>Cześć! Jestem Twoim trenerem pisania. Sprawdźmy Twój tekst razem! 💪</span>
+    </div>
+    <br>
+""", unsafe_allow_html=True)
+
 temat = st.selectbox("🎯 Wybierz temat:", list(TEMATY.keys()))
 tekst = st.text_area("✍️ Wpisz tutaj swój tekst:")
 
