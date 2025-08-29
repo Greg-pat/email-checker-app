@@ -1,27 +1,61 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import language_tool_python
 from datetime import date
 import re
 import random
 from collections import Counter
 import matplotlib.pyplot as plt
+import os
+import requests
 
 # ==========================
-# KONFIGURACJA
+# KONFIGURACJA STRONY
 # ==========================
 st.set_page_config("Ocena wypowiedzi pisemnej", layout="centered")
 
-# Publiczne API LanguageTool (działa na Streamlit Cloud)
-# Uwaga: może mieć limity / chwilowe przeciążenia -> try/except niżej
+# ==========================
+# KONFIGURACJA LANGUAGE TOOL (lib + fallback HTTP)
+# ==========================
+LT_MODE = "lib"
+tool = None
 try:
+    import language_tool_python
+    # Publiczne API LanguageTool (działa na Streamlit Cloud, ale z limitami)
     tool = language_tool_python.LanguageToolPublicAPI('en-GB')
-    LT_READY = True
 except Exception:
-    LT_READY = False
+    LT_MODE = "http"
 
-# Tematy i słowa kluczowe (zgodność z zadaniem)
+LT_ENDPOINT = os.environ.get("LT_ENDPOINT", "https://api.languagetool.org/v2/check")
+LT_LANG = "en-GB"
+
+def lt_check_http(text: str):
+    """Zapytanie bezpośrednio do publicznego LanguageTool HTTP API (fallback)."""
+    try:
+        resp = requests.post(
+            LT_ENDPOINT,
+            data={"text": text, "language": LT_LANG},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        matches = data.get("matches", [])
+        # Znormalizowany format
+        out = []
+        for m in matches:
+            out.append({
+                "offset": m.get("offset", 0),
+                "errorLength": m.get("length", 0),
+                "replacements": [r.get("value") for r in m.get("replacements", [])],
+                "ruleIssueType": m.get("rule", {}).get("issueType", "unknown")
+            })
+        return out
+    except Exception:
+        return []
+
+# ==========================
+# TEMATY I SŁOWA KLUCZOWE
+# ==========================
 TEMATY = {
     "Opisz swoje ostatnie wakacje": ["holiday", "trip", "beach", "mountains", "memories", "visited", "hotel"],
     "Napisz o swoich planach na najbliższy weekend": ["weekend", "going to", "plan", "cinema", "friends", "family"],
@@ -34,7 +68,7 @@ TEMATY = {
     "Zaproponuj wspólne zwiedzanie ciekawych miejsc w Polsce": ["sightseeing", "places", "Poland", "tour", "recommend"]
 }
 
-# Słowa często nadużywane (analiza stylu)
+# Nadużywane słowa (analiza stylu)
 OVERUSED = {
     "nice": ["pleasant", "enjoyable", "lovely"],
     "good": ["great", "excellent", "strong"],
@@ -42,40 +76,57 @@ OVERUSED = {
     "a lot": ["many", "plenty of", "a great deal"],
     "big": ["large", "huge", "significant"],
 }
-
 CONNECTORS = ["first", "then", "because", "however", "therefore", "in conclusion", "finally", "moreover", "for example"]
 
 # ==========================
 # FUNKCJE OCENY
 # ==========================
 def analiza_poprawnosci(tekst: str):
-    """Zwraca: pkt(0-2), tabela błędów, tekst z podkreślonymi błędami, kategorie błędów"""
+    """Zwraca: pkt(0-2), tabela błędów, tekst z podkreśleniami, kategorie błędów (Counter)."""
+    # Zbieramy wyniki z biblioteki lub z fallbacku HTTP
+    matches_std = []
+    if LT_MODE == "lib" and tool:
+        try:
+            matches = tool.check(tekst)
+            for m in matches:
+                matches_std.append({
+                    "offset": m.offset,
+                    "errorLength": m.errorLength,
+                    "replacements": m.replacements,
+                    "ruleIssueType": m.ruleIssueType
+                })
+        except Exception:
+            # awaryjnie przełączamy na HTTP
+            matches_std = lt_check_http(tekst)
+            st.info("ℹ️ Przełączono na tryb HTTP API (ograniczona analiza).")
+    else:
+        matches_std = lt_check_http(tekst)
+        if matches_std == []:
+            st.info("ℹ️ Ograniczona analiza poprawności (brak odpowiedzi z API).")
+
     błędy = []
     tekst_zaznaczony = tekst
 
-    if LT_READY:
-        try:
-            matches = tool.check(tekst)
-        except Exception:
-            matches = []
-            st.info("ℹ️ Chwilowo ograniczona analiza (API przeciążone).")
-    else:
-        matches = []
-        st.info("ℹ️ Ograniczona analiza poprawności (brak połączenia z API LanguageTool).")
-
-    for m in matches:
-        start = m.offset
-        end = start + m.errorLength
+    for m in matches_std:
+        start = m["offset"]
+        end = start + m["errorLength"]
         błąd = tekst[start:end]
-        poprawka = m.replacements[0] if m.replacements else "-"
+        poprawka = m["replacements"][0] if m["replacements"] else "-"
         if not błąd.strip():
             continue
         tekst_zaznaczony = tekst_zaznaczony.replace(błąd, f"**:red[{błąd}]**", 1)
-        błędy.append((błąd, poprawka, m.ruleIssueType))
+        błędy.append((błąd, poprawka, m["ruleIssueType"]))
 
     tabela = pd.DataFrame(błędy, columns=["Błąd", "Poprawna forma", "Typ błędu"]) if błędy \
              else pd.DataFrame(columns=["Błąd", "Poprawna forma", "Typ błędu"])
-    pkt = 2 if len(błędy) == 0 else 1 if len(błędy) < 5 else 0
+    # Skala poprawności: 2=bez błędów, 1=<5 błędów, 0=5+ błędów
+    if len(błędy) == 0:
+        pkt = 2
+    elif len(błędy) < 5:
+        pkt = 1
+    else:
+        pkt = 0
+
     kategorie = Counter([row[2] for row in błędy])
     return pkt, tabela, tekst_zaznaczony, kategorie
 
@@ -109,15 +160,13 @@ def ocena_długości(tekst: str):
         return 2, f"Liczba słów: {n} - poprawna."
     return 1 if n < 50 else 0, f"Liczba słów: {n} - poza zakresem (wymagane 50–120)."
 
-
 # ==========================
-# ANALIZA STYLU (pkt 3)
+# ANALIZA STYLU
 # ==========================
 def analiza_stylu(tekst: str):
-    # Podział na zdania (prosty)
     zdania = [z.strip() for z in re.split(r"(?<=[.!?])\s+", tekst) if z.strip()]
     długości = [len(z.split()) for z in zdania] if zdania else []
-    sr = sum(długości) / len(długości) if długości else 0.0
+    sr = (sum(długości) / len(długości)) if długości else 0.0
 
     if sr == 0:
         poziom = "brak"
@@ -128,13 +177,11 @@ def analiza_stylu(tekst: str):
     else:
         poziom = "złożone"
 
-    # Nadużycia leksykalne
     sugestie = []
     tekst_low = tekst.lower()
     for k, syns in OVERUSED.items():
         if k in tekst_low:
             sugestie.append(f"Zamiast **{k}** spróbuj: *{', '.join(syns)}*.")
-    # Łączniki
     if not any(c in tekst_low for c in [c.lower() for c in CONNECTORS]):
         sugestie.append("Dodaj łączniki: *however, therefore, moreover, for example*.")
 
@@ -145,9 +192,8 @@ def analiza_stylu(tekst: str):
         "sugestie": sugestie
     }
 
-
 # ==========================
-# ODZNAKI (pkt 1 – grywalizacja)
+# ODZNAKI (grywalizacja)
 # ==========================
 def odznaki(pkt_treść, pkt_spójność, pkt_zakres, pkt_poprawność, pkt_długość):
     badges = []
@@ -163,44 +209,38 @@ def odznaki(pkt_treść, pkt_spójność, pkt_zakres, pkt_poprawność, pkt_dłu
         badges.append("📏 Idealna długość")
     return badges
 
-
 # ==========================
-# MINI-QUIZ (pkt 10 – szybka powtórka)
+# MINI-QUIZ (szybka powtórka)
 # ==========================
 def generuj_quiz():
-    pytania = []
-
-    pytania.append({
-        "q": "Który łącznik najlepiej połączy zdania: 'I wanted to go for a walk. It started raining.'",
-        "options": ["because", "however", "for example"],
-        "answer": "however",
-        "explain": "Kontrast: chciałem iść na spacer, jednak zaczęło padać."
-    })
-
-    pytania.append({
-        "q": "Wybierz precyzyjniejsze słowo zamiast 'good':",
-        "options": ["excellent", "nice", "okay"],
-        "answer": "excellent",
-        "explain": "'Excellent' jest bardziej precyzyjne i silniejsze niż 'good'."
-    })
-
-    pytania.append({
-        "q": "Wybierz poprawną formę zdania w Past Simple:",
-        "options": ["Yesterday I go to school.", "Yesterday I went to school.", "Yesterday I going to school."],
-        "answer": "Yesterday I went to school.",
-        "explain": "Past Simple: went."
-    })
-
+    pytania = [
+        {
+            "q": "Który łącznik najlepiej połączy zdania: 'I wanted to go for a walk. It started raining.'",
+            "options": ["because", "however", "for example"],
+            "answer": "however",
+            "explain": "Kontrast: chciałem iść na spacer, jednak zaczęło padać."
+        },
+        {
+            "q": "Wybierz precyzyjniejsze słowo zamiast 'good':",
+            "options": ["excellent", "nice", "okay"],
+            "answer": "excellent",
+            "explain": "'Excellent' jest bardziej precyzyjne i silniejsze niż 'good'."
+        },
+        {
+            "q": "Wybierz poprawną formę zdania w Past Simple:",
+            "options": ["Yesterday I go to school.", "Yesterday I went to school.", "Yesterday I going to school."],
+            "answer": "Yesterday I went to school.",
+            "explain": "Past Simple: went."
+        }
+    ]
     random.shuffle(pytania)
     return pytania[:3]
-
 
 # ==========================
 # STAN APLIKACJI – HISTORIA
 # ==========================
 if "historia" not in st.session_state:
-    st.session_state["historia"] = []  # lista słowników: {data, temat, punkty}
-
+    st.session_state["historia"] = []  # {data, temat, punkty}
 
 # ==========================
 # UI
@@ -213,7 +253,7 @@ temat = st.selectbox("🎯 Wybierz temat:", list(TEMATY.keys()))
 tekst = st.text_area("✍️ Wpisz tutaj swój tekst (50–120 słów):", height=200)
 
 if st.button("✅ Sprawdź"):
-    # Ocena główna
+    # Ocena
     pkt_treść, op_treść = ocena_treści(tekst, temat)
     pkt_spójność, op_spójność = ocena_spójności(tekst)
     pkt_zakres, op_zakres = ocena_zakresu(tekst)
@@ -284,7 +324,7 @@ if st.button("✅ Sprawdź"):
         "punkty": suma
     })
 
-# --- 📈 Sekcja progresu (po ocenach) ---
+# --- 📈 Sekcja progresu ---
 if st.session_state["historia"]:
     st.markdown("---")
     st.subheader("📚 Historia Twoich wyników")
@@ -292,7 +332,6 @@ if st.session_state["historia"]:
     st.dataframe(hist_df, use_container_width=True)
 
     st.subheader("📈 Twój progres")
-    # Limituj do ostatnich 10 wpisów, by wykres był czytelny
     hist_plot = hist_df.tail(10).reset_index(drop=True)
     fig, ax = plt.subplots()
     ax.plot(hist_plot.index + 1, hist_plot["punkty"], marker="o")
