@@ -3,11 +3,11 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import re
-import random
 from collections import Counter
 import matplotlib.pyplot as plt
 import os
 import requests
+import random  # może się przydać w przyszłości (np. odznaki/porady)
 
 # ==========================
 # KONFIGURACJA STRONY
@@ -83,7 +83,6 @@ CONNECTORS = ["first", "then", "because", "however", "therefore", "in conclusion
 # ==========================
 def analiza_poprawnosci(tekst: str):
     """Zwraca: pkt(0-2), tabela błędów, tekst z podkreśleniami, kategorie błędów (Counter)."""
-    # Zbieramy wyniki z biblioteki lub z fallbacku HTTP
     matches_std = []
     if LT_MODE == "lib" and tool:
         try:
@@ -96,7 +95,6 @@ def analiza_poprawnosci(tekst: str):
                     "ruleIssueType": m.ruleIssueType
                 })
         except Exception:
-            # awaryjnie przełączamy na HTTP
             matches_std = lt_check_http(tekst)
             st.info("ℹ️ Przełączono na tryb HTTP API (ograniczona analiza).")
     else:
@@ -210,33 +208,6 @@ def odznaki(pkt_treść, pkt_spójność, pkt_zakres, pkt_poprawność, pkt_dłu
     return badges
 
 # ==========================
-# MINI-QUIZ (szybka powtórka)
-# ==========================
-def generuj_quiz():
-    pytania = [
-        {
-            "q": "Który łącznik najlepiej połączy zdania: 'I wanted to go for a walk. It started raining.'",
-            "options": ["because", "however", "for example"],
-            "answer": "however",
-            "explain": "Kontrast: chciałem iść na spacer, jednak zaczęło padać."
-        },
-        {
-            "q": "Wybierz precyzyjniejsze słowo zamiast 'good':",
-            "options": ["excellent", "nice", "okay"],
-            "answer": "excellent",
-            "explain": "'Excellent' jest bardziej precyzyjne i silniejsze niż 'good'."
-        },
-        {
-            "q": "Wybierz poprawną formę zdania w Past Simple:",
-            "options": ["Yesterday I go to school.", "Yesterday I went to school.", "Yesterday I going to school."],
-            "answer": "Yesterday I went to school.",
-            "explain": "Past Simple: went."
-        }
-    ]
-    random.shuffle(pytania)
-    return pytania[:3]
-
-# ==========================
 # STAN APLIKACJI – HISTORIA
 # ==========================
 if "historia" not in st.session_state:
@@ -247,7 +218,7 @@ if "historia" not in st.session_state:
 # ==========================
 st.title("📩 Automatyczna ocena wypowiedzi pisemnej")
 st.write(f"**Data:** {date.today().isoformat()}")
-st.info("Cześć! Napisz tekst na wybrany temat, a ja pokażę Ci wynik, podpowiedzi i mini-quiz. 🚀")
+st.info("Cześć! Napisz tekst na wybrany temat, a ja pokażę Ci wynik, podpowiedzi i historię postępu. 🚀")
 
 temat = st.selectbox("🎯 Wybierz temat:", list(TEMATY.keys()))
 tekst = st.text_area("✍️ Wpisz tutaj swój tekst (50–120 słów):", height=200)
@@ -299,24 +270,6 @@ if st.button("✅ Sprawdź"):
     st.markdown("## 📝 Tekst z zaznaczonymi błędami")
     st.markdown(zaznaczony, unsafe_allow_html=True)
 
-    # 🧩 Mini-quiz
-    st.markdown("## 🧩 Szybka powtórka (mini-quiz)")
-    pytania = generuj_quiz()
-    if 'quiz_odp' not in st.session_state:
-        st.session_state.quiz_odp = {}
-    poprawne = 0
-    for i, p in enumerate(pytania):
-        odp = st.radio(f"{i+1}. {p['q']}", p['options'], key=f"quiz_{i}")
-        st.session_state.quiz_odp[i] = (odp, p['answer'], p['explain'])
-    if st.button("📥 Sprawdź odpowiedzi"):
-        for i, (u, ans, expl) in st.session_state.quiz_odp.items():
-            if u == ans:
-                poprawne += 1
-                st.success(f"{i+1}. ✅ Dobrze! ({ans})")
-            else:
-                st.error(f"{i+1}. ❌ Poprawna: {ans}. {expl}")
-        st.info(f"Wynik quizu: **{poprawne}/{len(st.session_state.quiz_odp)}**")
-
     # 💾 Zapis do historii
     st.session_state["historia"].append({
         "data": date.today().isoformat(),
@@ -343,4 +296,3 @@ if st.session_state["historia"]:
     ax.set_xticks(range(1, len(hist_plot) + 1))  # ✅ tylko liczby całkowite na osi X
     ax.set_title("Postępy w ocenach (ostatnie 10 prób)")
     st.pyplot(fig)
-
